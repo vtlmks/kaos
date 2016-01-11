@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-PATH=/home/vital/x-tools/i386-kaos-elf/bin/:$PATH
+PATH=~/x-tools/i386-kaos-elf/bin/:$PATH
 
 nasm -felf32 boot.s -o boot.o
 
