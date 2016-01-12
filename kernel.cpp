@@ -59,7 +59,7 @@ size_t strlen(const char* str) {
 	return ret;
 }
 
-void terminal_initialize() {
+void termInit() {
 	terminal_row = 0;
 	terminal_column = 0;
 	terminal_color = make_color(COLOR_LIGHT_GREY, COLOR_BLUE);
@@ -97,13 +97,13 @@ void terminal_putchar(char c) {
 	}
 }
 
-void terminal_writestring(char* data) {
+void termWriteString(const char* data) {
 	size_t datalen = strlen(data);
 	for (size_t i = 0; i < datalen; i++)
 		terminal_putchar(data[i]);
 }
 
-typedef struct ModeInfoBlock {
+struct ModeInfoBlock {
 // Mandatory information for all VBE revisions
 	uint16_t	ModeAttributes;
 	uint8_t		WinAAttributes;
@@ -158,7 +158,7 @@ typedef struct ModeInfoBlock {
 	uint8_t		LinRsvdFieldPosition;
 	uint32_t	MaxPixelClock;
 	uint8_t		Reserved[189];
-} ModeInfoBlock;
+};
 
 typedef union vbe_ptr {
 	uint32_t		Ptr32;
@@ -172,7 +172,7 @@ typedef union vbe_ptr {
 
 } vbe_ptr;
 
-typedef struct VbeInfoBlock {
+struct VbeInfoBlock {
 	union {
 		uint8_t		SigChr[4];
 		uint32_t	Sig32;
@@ -189,9 +189,9 @@ typedef struct VbeInfoBlock {
 	vbe_ptr		OemProductRev;
 	uint16_t	Reserved[111]; // used for dynamically generated mode list
 	uint8_t		OemData[256];
-} VbeInfoBlock;
+};
 
-typedef struct MultibootInfo {
+struct MultibootInfo {
 	uint32_t			flags;
 	uint32_t			memLower;
 	uint32_t			memUpper;
@@ -212,7 +212,7 @@ typedef struct MultibootInfo {
 	uint32_t			vbeInterfaceLength;
 	uint32_t			vbeInterfaceSegment;
 	uint32_t			vbeInterfaceOffset;
-} MultibootInfo;
+};
 
 char hexChars[] = "0123456789ABCDEF";
 
@@ -226,23 +226,24 @@ void termWriteHex(uint32_t value) {
 extern "C"
 #endif
 void kernel_main(MultibootInfo *m, uint32_t checksum) {
-	terminal_initialize();
-	terminal_writestring("MultibootInfo\n~~~~~~~~~~~~~~~~");
-	terminal_writestring("\n     vbeControlInfo 0x");
+	termInit();
+	termWriteString("\n\nChecksum 0x");
+	termWriteHex(checksum);
+	termWriteString("\n\nMultibootInfo\n~~~~~~~~~~~~~~~~");
+	termWriteString("\n     vbeControlInfo 0x");
 	termWriteHex((uint32_t)m->vbeControlInfo);
-	terminal_writestring("\n        vbeModeInfo 0x");
+	termWriteString("\n        vbeModeInfo 0x");
 	termWriteHex((uint32_t)m->vbeModeInfo);
-	terminal_writestring("\nvbeInterfaceSegment 0x");
+	termWriteString("\nvbeInterfaceSegment 0x");
 	termWriteHex(m->vbeInterfaceSegment);
-	terminal_writestring("\n vbeInterfaceOffset 0x");
+	termWriteString("\n vbeInterfaceOffset 0x");
 	termWriteHex(m->vbeInterfaceOffset);
-	terminal_writestring("\n vbeInterfaceLength 0x");
+	termWriteString("\n vbeInterfaceLength 0x");
 	termWriteHex(m->vbeInterfaceLength);
 
 	VbeInfoBlock	*vi = m->vbeControlInfo;
-	ModeInfoBlock *mi = m->vbeModeInfo;
+	// ModeInfoBlock *mi = m->vbeModeInfo;
 
-	terminal_writestring("\n vbeModeInfo->PhysBasePtrdd 0x");
+	termWriteString("\n vbeModeInfo->PhysBasePtrdd 0x");
 	termWriteHex((uint32_t)vi->VideoModePtr_Seg);
 }
-
