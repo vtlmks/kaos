@@ -77,6 +77,8 @@ stack_top:
 	section	.text
 	bits	32
 _start:	mov	esp, stack_top
+	push eax
+	push ebx
 	call	kernel_main
 	cli
 .hang:	hlt

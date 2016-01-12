@@ -82,7 +82,13 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
 }
 
 void terminal_putchar(char c) {
+	if(c == '\n') {
+		terminal_column = 0;
+		terminal_row++;
+		return;
+	}
 	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+
 	if (++terminal_column == VGA_WIDTH) {
 		terminal_column = 0;
 		if (++terminal_row == VGA_HEIGHT) {
@@ -97,11 +103,58 @@ void terminal_writestring(const char* data) {
 		terminal_putchar(data[i]);
 }
 
+typedef struct MultibootInfo {
+	uint32_t	flags;
+	uint32_t	memLower;
+	uint32_t	memUpper;
+	uint32_t	bootDevice;
+	uint32_t	cmdLine;
+	uint32_t	modsCount;
+	uint32_t	modsAddr;
+	uint32_t	syms[4];
+	uint32_t	mmapLength;
+	uint32_t	mmapAddr;
+	uint32_t	drivesLength;
+	uint32_t	drivesAddr;
+	uint32_t	configTable;
+	uint32_t	bootLoaderName;
+	uint32_t	apmTable;
+	uint32_t	vbeControlInfo;
+	uint32_t	vbeModeInfo;
+	uint32_t	vbeInterfaceSegment;
+	uint32_t	vbeInterfaceOffset;
+	uint32_t	vbeInterfaceLength;
+} MultibootInfo;
+
+char hexChars[] = "0123456789ABCDEF";
+
+void termWriteHex(uint32_t value) {
+	for (size_t i = 0, j = (8-1)*4 ; i<8; ++i, j -= 4) {
+		terminal_putchar(hexChars[(value >> j) & 0xf]);
+	}
+}
+
 #if defined(__cplusplus)
 extern "C"
 #endif
-void kernel_main() {
+void kernel_main(MultibootInfo *m, uint32_t checksum) {
 	terminal_initialize();
-	terminal_writestring("Hello, kernel World!\n");
+	terminal_writestring("MultibootInfo\n~~~~~~~~~~~~~~~~");
+	terminal_writestring("\n     vbeControlInfo 0x");
+	termWriteHex(m->vbeControlInfo);
+	terminal_writestring("\n        vbeModeInfo 0x");
+	termWriteHex(m->vbeModeInfo);
+	terminal_writestring("\nvbeInterfaceSegment 0x");
+	termWriteHex(m->vbeInterfaceSegment);
+	terminal_writestring("\n vbeInterfaceOffset 0x");
+	termWriteHex(m->vbeInterfaceOffset);
+	terminal_writestring("\n vbeInterfaceLength 0x");
+	termWriteHex(m->vbeInterfaceLength);
+
+
+	terminal_writestring("\n\n test 0x");
+	termWriteHex(0x12345678);
+
+
 }
 
