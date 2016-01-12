@@ -72,13 +72,13 @@ stack_top:
 ;	dd vbe_interface_len
 
 	global _start
+	extern	kernel_main
 
 	section	.text
-	bits 32
-_start:	mov esp, stack_top
-	extern kernel_main
-	call kernel_main
+	bits	32
+_start:	mov	esp, stack_top
+	call	kernel_main
 	cli
 .hang:	hlt
-	jmp .hang
+	jmp	.hang
 
