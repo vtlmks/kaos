@@ -37,10 +37,10 @@ enum vga_color {
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 25;
 
-size_t terminal_row;
-size_t terminal_column;
-uint8_t terminal_color;
-uint16_t* terminal_buffer;
+size_t		terminal_row;
+size_t		terminal_column;
+uint8_t		terminal_color;
+uint16_t	*terminal_buffer;
 
 uint8_t make_color(enum vga_color fg, enum vga_color bg) {
 	return fg | bg << 4;
@@ -63,7 +63,7 @@ void terminal_initialize() {
 	terminal_row = 0;
 	terminal_column = 0;
 	terminal_color = make_color(COLOR_LIGHT_GREY, COLOR_BLUE);
-	terminal_buffer = (uint16_t*) 0xB8000;
+	terminal_buffer = (uint16_t*)0xB8000;
 	for (size_t y = 0; y < VGA_HEIGHT; y++) {
 		for (size_t x = 0; x < VGA_WIDTH; x++) {
 			const size_t index = y * VGA_WIDTH + x;
@@ -97,33 +97,121 @@ void terminal_putchar(char c) {
 	}
 }
 
-void terminal_writestring(const char* data) {
+void terminal_writestring(char* data) {
 	size_t datalen = strlen(data);
 	for (size_t i = 0; i < datalen; i++)
 		terminal_putchar(data[i]);
 }
 
+typedef struct ModeInfoBlock {
+// Mandatory information for all VBE revisions
+	uint16_t	ModeAttributes;
+	uint8_t		WinAAttributes;
+	uint8_t		WinBAttributes;
+	uint16_t	WinGranularity;
+	uint16_t	WinSize;
+	uint16_t	WinASegment;
+	uint16_t	WinBSegment;
+	uint32_t	WinFuncPtr;
+	uint16_t	BytesPerScanLine;
+
+// Mandatory information for VBE 1.2 and above
+	uint16_t	XResolution;
+	uint16_t	YResolution;
+	uint8_t		XCharSize;
+	uint8_t		YCharSize;
+	uint8_t		NumberOfPlanes;
+	uint8_t		BitsPerPixel;
+	uint8_t		NumberOfBanks;
+	uint8_t		MemoryModel;
+	uint8_t		BankSize;
+	uint8_t		NumberOfImagePages;
+	uint8_t		Reserved_page;
+
+// Direct Color fields (required for direct/6 and YUV/7 memory models)
+	uint8_t		RedMaskSize;
+	uint8_t		RedFieldPosition;
+	uint8_t		GreenMaskSize;
+	uint8_t		GreenFieldPosition;
+	uint8_t		BlueMaskSize;
+	uint8_t		BlueFieldPosition;
+	uint8_t		RsvdMaskSize;
+	uint8_t		RsvdFieldPosition;
+	uint8_t		DirectColorModeInfo;
+
+// Mandatory information for VBE 2.0 and above
+	uint32_t	PhysBasePtr;
+	uint32_t	OffScreenMemOffset;
+	uint16_t	OffScreenMemSize;
+
+// Mandatory information for VBE 3.0 and above
+	uint16_t	LinBytesPerScanLine;
+	uint8_t		BnkNumberOfPages;
+	uint8_t		LinNumberOfPages;
+	uint8_t		LinRedMaskSize;
+	uint8_t		LinRedFieldPosition;
+	uint8_t		LinGreenMaskSize;
+	uint8_t		LinGreenFieldPosition;
+	uint8_t		LinBlueMaskSize;
+	uint8_t		LinBlueFieldPosition;
+	uint8_t		LinRsvdMaskSize;
+	uint8_t		LinRsvdFieldPosition;
+	uint32_t	MaxPixelClock;
+	uint8_t		Reserved[189];
+} ModeInfoBlock;
+
+typedef union vbe_ptr {
+	uint32_t		Ptr32;
+
+//	void *Ptr;
+//	void __far	*Ptr;
+//	union {
+//		uint16_t	Off;
+//		uint16_t	Seg;
+//	};
+
+} vbe_ptr;
+
+typedef struct VbeInfoBlock {
+	union {
+		uint8_t		SigChr[4];
+		uint32_t	Sig32;
+	} VbeSignature;
+	uint16_t	VbeVersion;
+	vbe_ptr		OemString;
+	uint8_t		Capabilities[4];
+	uint16_t	VideoModePtr_Off;
+	uint16_t	VideoModePtr_Seg;
+	uint16_t	TotalMemory;
+	uint16_t	OemSoftwareRev;
+	uint32_t	*OemVendorName;
+	vbe_ptr		OemProductName;
+	vbe_ptr		OemProductRev;
+	uint16_t	Reserved[111]; // used for dynamically generated mode list
+	uint8_t		OemData[256];
+} VbeInfoBlock;
+
 typedef struct MultibootInfo {
-	uint32_t	flags;
-	uint32_t	memLower;
-	uint32_t	memUpper;
-	uint32_t	bootDevice;
-	uint32_t	cmdLine;
-	uint32_t	modsCount;
-	uint32_t	modsAddr;
-	uint32_t	syms[4];
-	uint32_t	mmapLength;
-	uint32_t	mmapAddr;
-	uint32_t	drivesLength;
-	uint32_t	drivesAddr;
-	uint32_t	configTable;
-	uint32_t	bootLoaderName;
-	uint32_t	apmTable;
-	uint32_t	vbeControlInfo;
-	uint32_t	vbeModeInfo;
-	uint32_t	vbeInterfaceSegment;
-	uint32_t	vbeInterfaceOffset;
-	uint32_t	vbeInterfaceLength;
+	uint32_t			flags;
+	uint32_t			memLower;
+	uint32_t			memUpper;
+	uint32_t			bootDevice;
+	uint32_t			cmdLine;
+	uint32_t			modsCount;
+	uint32_t			modsAddr;
+	uint32_t			syms[4];
+	uint32_t			mmapLength;
+	uint32_t			mmapAddr;
+	uint32_t			drivesLength;
+	uint32_t			drivesAddr;
+	uint32_t			configTable;
+	uint32_t			bootLoaderName;
+	uint32_t			apmTable;
+	VbeInfoBlock	*vbeControlInfo;
+	ModeInfoBlock	*vbeModeInfo;
+	uint32_t			vbeInterfaceLength;
+	uint32_t			vbeInterfaceSegment;
+	uint32_t			vbeInterfaceOffset;
 } MultibootInfo;
 
 char hexChars[] = "0123456789ABCDEF";
@@ -141,9 +229,9 @@ void kernel_main(MultibootInfo *m, uint32_t checksum) {
 	terminal_initialize();
 	terminal_writestring("MultibootInfo\n~~~~~~~~~~~~~~~~");
 	terminal_writestring("\n     vbeControlInfo 0x");
-	termWriteHex(m->vbeControlInfo);
+	termWriteHex((uint32_t)m->vbeControlInfo);
 	terminal_writestring("\n        vbeModeInfo 0x");
-	termWriteHex(m->vbeModeInfo);
+	termWriteHex((uint32_t)m->vbeModeInfo);
 	terminal_writestring("\nvbeInterfaceSegment 0x");
 	termWriteHex(m->vbeInterfaceSegment);
 	terminal_writestring("\n vbeInterfaceOffset 0x");
@@ -151,10 +239,10 @@ void kernel_main(MultibootInfo *m, uint32_t checksum) {
 	terminal_writestring("\n vbeInterfaceLength 0x");
 	termWriteHex(m->vbeInterfaceLength);
 
+	VbeInfoBlock	*vi = m->vbeControlInfo;
+	ModeInfoBlock *mi = m->vbeModeInfo;
 
-	terminal_writestring("\n\n test 0x");
-	termWriteHex(0x12345678);
-
-
+	terminal_writestring("\n vbeModeInfo->PhysBasePtrdd 0x");
+	termWriteHex((uint32_t)vi->VideoModePtr_Seg);
 }
 
