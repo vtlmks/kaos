@@ -1,6 +1,6 @@
 // vim:set tabstop=2:
 #if !defined(__cplusplus)
-#include <stdbool.h> /* C doesn't have booleans by default. */
+#include <stdbool.h>
 #endif
 
 #include <stddef.h>
@@ -35,75 +35,6 @@ enum vga_color {
 	COLOR_LIGHT_BROWN = 14,
 	COLOR_WHITE = 15,
 };
-
-static const size_t VGA_WIDTH = 80;
-static const size_t VGA_HEIGHT = 25;
-
-size_t		terminal_row;
-size_t		terminal_column;
-uint8_t		terminal_color;
-uint16_t	*terminal_buffer;
-
-uint8_t make_color(enum vga_color fg, enum vga_color bg) {
-	return fg | bg << 4;
-}
-
-uint16_t make_vgaentry(char c, uint8_t color) {
-	uint16_t c16 = c;
-	uint16_t color16 = color;
-	return c16 | color16 << 8;
-}
-
-size_t strlen(const char* str) {
-	size_t ret = 0;
-	while ( str[ret] != 0 )
-		ret++;
-	return ret;
-}
-
-void termInit() {
-	terminal_row = 0;
-	terminal_column = 0;
-	terminal_color = make_color(COLOR_LIGHT_GREY, COLOR_BLUE);
-	terminal_buffer = (uint16_t*)0xB8000;
-	for (size_t y = 0; y < VGA_HEIGHT; y++) {
-		for (size_t x = 0; x < VGA_WIDTH; x++) {
-			const size_t index = y * VGA_WIDTH + x;
-			terminal_buffer[index] = make_vgaentry(' ', terminal_color);
-		}
-	}
-}
-
-void terminal_setcolor(uint8_t color) {
-	terminal_color = color;
-}
-
-void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
-	const size_t index = y * VGA_WIDTH + x;
-	terminal_buffer[index] = make_vgaentry(c, color);
-}
-
-void terminal_putchar(char c) {
-	if(c == '\n') {
-		terminal_column = 0;
-		terminal_row++;
-		return;
-	}
-	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
-
-	if (++terminal_column == VGA_WIDTH) {
-		terminal_column = 0;
-		if (++terminal_row == VGA_HEIGHT) {
-			terminal_row = 0;
-		}
-	}
-}
-
-void termWriteString(const char* data) {
-	size_t datalen = strlen(data);
-	for (size_t i = 0; i < datalen; i++)
-		terminal_putchar(data[i]);
-}
 
 struct VbeModeInfoBlock {
 // Mandatory information for all VBE revisions
@@ -183,82 +114,98 @@ struct VbeInfoBlock {
 };
 
 struct MultibootInfo {
-	uint32_t			flags;
-	uint32_t			memLower;
-	uint32_t			memUpper;
-	uint32_t			bootDevice;
-	uint32_t			cmdLine;
-	uint32_t			modsCount;
-	uint32_t			modsAddr;
-	uint32_t			syms[4];
-	uint32_t			mmapLength;
-	uint32_t			mmapAddr;
-	uint32_t			drivesLength;
-	uint32_t			drivesAddr;
-	uint32_t			configTable;
-	uint32_t			bootLoaderName;
-	uint32_t			apmTable;
-	VbeInfoBlock		*vbeInfoBlock;					// control_info
+	uint32_t					flags;
+	uint32_t					memLower;
+	uint32_t					memUpper;
+	uint32_t					bootDevice;
+	uint32_t					cmdLine;
+	uint32_t					modsCount;
+	uint32_t					modsAddr;
+	uint32_t					syms[4];
+	uint32_t					mmapLength;
+	uint32_t					mmapAddr;
+	uint32_t					drivesLength;
+	uint32_t					drivesAddr;
+	uint32_t					configTable;
+	uint32_t					bootLoaderName;
+	uint32_t					apmTable;
+	VbeInfoBlock			*vbeInfoBlock;					// control_info
 	VbeModeInfoBlock	*vbeModeInfoBlock;				// mode_info
-	uint16_t			vbeMode;
-	uint16_t			vbeInterfaceSegment;
-	uint16_t			vbeInterfaceOffset;
-	uint16_t			vbeInterfaceLength;
+	uint16_t					vbeMode;
+	uint16_t					vbeInterfaceSegment;
+	uint16_t					vbeInterfaceOffset;
+	uint16_t					vbeInterfaceLength;
 };
+
+struct vec2 {
+	uint8_t	x;
+	uint8_t	y;
+};
+
+vec2 cursor = {0,0};
+uint32_t	fontColor = 0xffaaaaaa;
+uint32_t	backColor = 0xff0e1723;
+
+size_t strlen(const char *str) {
+	size_t result = 0;
+	while(*str++) {
+ 		result++;
+	}
+	return result;
+}
 
 void termWriteHex(uint32_t value) {
 	static const char hexChars[] = "0123456789ABCDEF";
-	char temp[8];
+	char temp[8] __attribute__((unused));
 	for (size_t i = 0, j = (8-1)*4 ; i<8; ++i, j -= 4) {
 		temp[i] = hexChars[(value >> j) & 0xf];
 	}
-	termWriteString(temp);
+//	termWriteString(temp);
 }
 
 #if defined(__cplusplus)
 extern "C"
 #endif
-void kernel_main(MultibootInfo *m, uint32_t checksum) {
-	termInit();
-	termWriteHex((uint32_t)checksum);
+void kernel_main(MultibootInfo *m) {
+//	termInit();
 
 	VbeModeInfoBlock	*mi						= m->vbeModeInfoBlock;
 	uint32_t					*frameBuffer	= (uint32_t *)mi->PhysBasePtr;
 	PSF2							*psf					= (PSF2 *)&fontLat2Terminus16;
 	uint8_t						*font					= (uint8_t *)(psf) + psf->headerSize;
 
-	struct vec2 {
-		uint8_t	x;
-		uint8_t	y;
-	};
-	vec2 cursor = {0,0};
-	uint32_t	fontColor = 0xffaaaaaa;
-	uint32_t	backColor = 0xff0e1723;
+	const char *stringBuffer =
+		"KAOS v0.0.0 - Created by Mindkiller Systems.\n"
+		"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n"
+		"A multilevel feedback queue should give preference to short jobs, I/O bound processes.\n\n"
+		"Separate processes into categories based on their need for the processor\n"
+		"  - How often the task has to be preempted can be used to decide processor bound processes, after a while the process will migrate to a lower-priority queue.\n"
+		"  - If the process yields itself due to waiting for I/O decides if and how I/O bound a process is.\n"
+		"  - For short jobs, no real idea, but we could give a larger quanta from the start of a new process and lower the quanta to the standard level shortly after.\n"
+		"  - A process that waits for too long in a lower-priority queue may be moved into a higher-priority queue.\n"
+ 		"  - This is to prevent starvation of lower-priority processes.\n"
+		"  - Processes that yields to wait for I/O will gain higher priority so that they are more responsive and finishes faster (in theory)\n\n"
+		"Highest priority (low quanta)\n"
+		"  1) system processes\n"
+		"  2) interactive processes\n"
+		"  3) interactive editing processes\n"
+		"  4) batch processes\n"
+		"  5) other processes (sending data to microsoft servers or somesuch)\n"
+		"Lowest priority (high quanta)\n\n"
+		"Scheduling parameters\n"
+		"~~~~~~~~~~~~~~~~~~~~~\n"
+		"In general, a multilevel feedback queue scheduler is defined by the following parameters:\n\n"
+		"  - The number of queues.\n"
+		"  - The scheduling algorithm for each queue which can be different from FIFO.\n"
+		"  - The method used to determine when to promote a process to a higher priority queue.\n"
+		"  - The method used to determine when to demote a process to a lower priority queue.\n"
+		"  - The method used to determine which queue a process will enter when that process needs service.\n"
+		"\0";	// HAS to end with null..
 
-	const char *stringBuffer =	"KAOS v0.0.0 - Created by Mindkiller Systems.\n"
-															"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n"
-															"A multilevel feedback queue should give preference to short jobs, I/O bound processes,\n"
-															"separate processes into categories based on their need for the processor <wikipedia>\n"
- 															"  - How often the task has to be preempted can be used to decide processor bound processes, after a while the process will migrate to a lower-priority queue.\n"
- 															"  - If the process yields itself due to waiting for I/O decides if and how I/O bound a process is.\n"
- 															"  - For short jobs, no real idea, but we could give a larger quanta from the start of a new process and lower the quanta to the standard level shortly after.\n"
- 															"  - A process that waits for too long in a lower-priority queue may be moved into a higher-priority queue. - This is to prevent starvation of lower-priority processes.\n"
- 															"  - Processes that yields to wait for I/O will gain higher priority so that they are more responsive and finishes faster (in theory)\n\n"
- 															"Highest priority (low quanta)\n"
-  														"  - system processes\n"
-  														"  - interactive processes\n"
-  														"  - interactive editing processes\n"
-  														"  - batch processes\n"
-  														"  - other processes (sending data to microsoft servers or somesuch)\n"
- 															"Lowest priority (high quanta)\n\n"
- 															"In general, a multilevel feedback queue scheduler is defined by the following parameters:\n\n"
- 															"  - The number of queues.\n"
-  														"  - The scheduling algorithm for each queue which can be different from FIFO.\n"
-  														"  - The method used to determine when to promote a process to a higher priority queue.\n"
-  														"  - The method used to determine when to demote a process to a lower priority queue.\n"
-  														"  - The method used to determine which queue a process will enter when that process needs service.\n"
 
-															"\0";	// HAS to end with null..
+	uint32_t *ptr = (uint32_t *)0x40000;		// so we can write stuff and read out from qemu -monitor stdio
+	ptr[0] = strlen(stringBuffer);
+
 
 	for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
 		frameBuffer[i] = backColor;
@@ -284,8 +231,6 @@ void kernel_main(MultibootInfo *m, uint32_t checksum) {
 	}
 
 	while(1) {
+		backColor++;
 	}
-
-//	termWriteHex((uint32_t)mi->PhysBasePtr);
-
 }

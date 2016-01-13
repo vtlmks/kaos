@@ -3,8 +3,6 @@
 mkdir -p isodir/boot/grub
 cp kaos.bin isodir/boot/
 cp grub.cfg isodir/boot/grub/
-grub-mkrescue -o kaos.iso isodir
+grub-mkrescue -o kaos.iso isodir >/dev/null 2>&1
 
 qemu-system-x86_64 -cdrom kaos.iso -monitor stdio
-
-

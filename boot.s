@@ -78,8 +78,6 @@ stack_top:
 	section	.text
 	bits	32
 _start:	mov	esp, stack_top
-	mov	[0x40000], ebx
-	push	eax
 	push	ebx
 	call	kernel_main
 	cli
