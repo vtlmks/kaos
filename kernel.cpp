@@ -1,3 +1,4 @@
+// vim:set tabstop=2:
 #if !defined(__cplusplus)
 #include <stdbool.h> /* C doesn't have booleans by default. */
 #endif
@@ -5,14 +6,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Check if the compiler thinks we are targeting the wrong operating system. */
+#include "psf.h"
+#include "fontLat2Terminus16.h"
+
 #if defined(__linux__)
-#error "You are not using a cross-compiler, you will most certainly run into trouble"
+#error "Wrong compiler"
 #endif
 
-/* This tutorial will only work for the 32-bit ix86 targets. */
 #if !defined(__i386__)
-#error "This tutorial needs to be compiled with a ix86-elf compiler"
+#error "x86-elf compiler please"
 #endif
 
 enum vga_color {
@@ -103,7 +105,7 @@ void termWriteString(const char* data) {
 		terminal_putchar(data[i]);
 }
 
-struct ModeInfoBlock {
+struct VbeModeInfoBlock {
 // Mandatory information for all VBE revisions
 	uint16_t	ModeAttributes;
 	uint8_t		WinAAttributes;
@@ -160,34 +162,23 @@ struct ModeInfoBlock {
 	uint8_t		Reserved[189];
 };
 
-typedef union vbe_ptr {
-	uint32_t		Ptr32;
-
-//	void *Ptr;
-//	void __far	*Ptr;
-//	union {
-//		uint16_t	Off;
-//		uint16_t	Seg;
-//	};
-
-} vbe_ptr;
-
 struct VbeInfoBlock {
-	union {
-		uint8_t		SigChr[4];
-		uint32_t	Sig32;
-	} VbeSignature;
+	uint8_t	VbeSignature[4];
 	uint16_t	VbeVersion;
-	vbe_ptr		OemString;
+	uint16_t	OemStringPtr_Off;
+	uint16_t	OemStringPtr_Seg;
 	uint8_t		Capabilities[4];
 	uint16_t	VideoModePtr_Off;
 	uint16_t	VideoModePtr_Seg;
 	uint16_t	TotalMemory;
 	uint16_t	OemSoftwareRev;
-	uint32_t	*OemVendorName;
-	vbe_ptr		OemProductName;
-	vbe_ptr		OemProductRev;
-	uint16_t	Reserved[111]; // used for dynamically generated mode list
+	uint16_t	OemVendorNamePtr_Off;
+	uint16_t	OemVendorNamePtr_Seg;
+	uint16_t	OemProductNamePtr_Off;
+	uint16_t	OemProductNamePtr_Seg;
+	uint16_t	OemProductRevPtr_Off;
+	uint16_t	OemProductRevPtr_Seg;
+	uint16_t	Reserved[111]; // used for dynamicly generated mode list
 	uint8_t		OemData[256];
 };
 
@@ -207,19 +198,21 @@ struct MultibootInfo {
 	uint32_t			configTable;
 	uint32_t			bootLoaderName;
 	uint32_t			apmTable;
-	VbeInfoBlock	*vbeControlInfo;
-	ModeInfoBlock	*vbeModeInfo;
-	uint32_t			vbeInterfaceLength;
-	uint32_t			vbeInterfaceSegment;
-	uint32_t			vbeInterfaceOffset;
+	VbeInfoBlock		*vbeInfoBlock;					// control_info
+	VbeModeInfoBlock	*vbeModeInfoBlock;				// mode_info
+	uint16_t			vbeMode;
+	uint16_t			vbeInterfaceSegment;
+	uint16_t			vbeInterfaceOffset;
+	uint16_t			vbeInterfaceLength;
 };
 
-char hexChars[] = "0123456789ABCDEF";
-
 void termWriteHex(uint32_t value) {
+	static const char hexChars[] = "0123456789ABCDEF";
+	char temp[8];
 	for (size_t i = 0, j = (8-1)*4 ; i<8; ++i, j -= 4) {
-		terminal_putchar(hexChars[(value >> j) & 0xf]);
+		temp[i] = hexChars[(value >> j) & 0xf];
 	}
+	termWriteString(temp);
 }
 
 #if defined(__cplusplus)
@@ -227,23 +220,72 @@ extern "C"
 #endif
 void kernel_main(MultibootInfo *m, uint32_t checksum) {
 	termInit();
-	termWriteString("\n\nChecksum 0x");
-	termWriteHex(checksum);
-	termWriteString("\n\nMultibootInfo\n~~~~~~~~~~~~~~~~");
-	termWriteString("\n     vbeControlInfo 0x");
-	termWriteHex((uint32_t)m->vbeControlInfo);
-	termWriteString("\n        vbeModeInfo 0x");
-	termWriteHex((uint32_t)m->vbeModeInfo);
-	termWriteString("\nvbeInterfaceSegment 0x");
-	termWriteHex(m->vbeInterfaceSegment);
-	termWriteString("\n vbeInterfaceOffset 0x");
-	termWriteHex(m->vbeInterfaceOffset);
-	termWriteString("\n vbeInterfaceLength 0x");
-	termWriteHex(m->vbeInterfaceLength);
+	termWriteHex((uint32_t)checksum);
 
-	VbeInfoBlock	*vi = m->vbeControlInfo;
-	// ModeInfoBlock *mi = m->vbeModeInfo;
+	VbeModeInfoBlock	*mi						= m->vbeModeInfoBlock;
+	uint32_t					*frameBuffer	= (uint32_t *)mi->PhysBasePtr;
+	PSF2							*psf					= (PSF2 *)&fontLat2Terminus16;
+	uint8_t						*font					= (uint8_t *)(psf) + psf->headerSize;
 
-	termWriteString("\n vbeModeInfo->PhysBasePtrdd 0x");
-	termWriteHex((uint32_t)vi->VideoModePtr_Seg);
+	struct vec2 {
+		uint8_t	x;
+		uint8_t	y;
+	};
+	vec2 cursor = {0,0};
+	uint32_t	fontColor = 0xffaaaaaa;
+	uint32_t	backColor = 0xff0e1723;
+
+	const char *stringBuffer =	"KAOS v0.0.0 - Created by Mindkiller Systems.\n"
+															"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n"
+															"A multilevel feedback queue should give preference to short jobs, I/O bound processes,\n"
+															"separate processes into categories based on their need for the processor <wikipedia>\n"
+ 															"  - How often the task has to be preempted can be used to decide processor bound processes, after a while the process will migrate to a lower-priority queue.\n"
+ 															"  - If the process yields itself due to waiting for I/O decides if and how I/O bound a process is.\n"
+ 															"  - For short jobs, no real idea, but we could give a larger quanta from the start of a new process and lower the quanta to the standard level shortly after.\n"
+ 															"  - A process that waits for too long in a lower-priority queue may be moved into a higher-priority queue. - This is to prevent starvation of lower-priority processes.\n"
+ 															"  - Processes that yields to wait for I/O will gain higher priority so that they are more responsive and finishes faster (in theory)\n\n"
+ 															"Highest priority (low quanta)\n"
+  														"  - system processes\n"
+  														"  - interactive processes\n"
+  														"  - interactive editing processes\n"
+  														"  - batch processes\n"
+  														"  - other processes (sending data to microsoft servers or somesuch)\n"
+ 															"Lowest priority (high quanta)\n\n"
+ 															"In general, a multilevel feedback queue scheduler is defined by the following parameters:\n\n"
+ 															"  - The number of queues.\n"
+  														"  - The scheduling algorithm for each queue which can be different from FIFO.\n"
+  														"  - The method used to determine when to promote a process to a higher priority queue.\n"
+  														"  - The method used to determine when to demote a process to a lower priority queue.\n"
+  														"  - The method used to determine which queue a process will enter when that process needs service.\n"
+
+															"\0";	// HAS to end with null..
+
+	for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
+		frameBuffer[i] = backColor;
+	}
+
+	while(*stringBuffer) {
+		uint8_t character = *stringBuffer++;
+
+		if(character == '\n') {
+			cursor.y++;
+			cursor.x = 0;
+		} else {
+			for(uint32_t row = 0; row < psf->height; ++row) { //psf->height; ++y) {
+				uint16_t fontRowData = font[(character * psf->charSize) + row];
+				for(uint32_t pixel = 0; pixel < psf->width; ++pixel) {
+					if (fontRowData & 1 << pixel) {
+						frameBuffer[cursor.x*8 + ((row + (cursor.y*psf->height)) * 1280) + (8 - pixel)] = fontColor;
+					}
+				};
+			};
+			cursor.x++;
+		}
+	}
+
+	while(1) {
+	}
+
+//	termWriteHex((uint32_t)mi->PhysBasePtr);
+
 }

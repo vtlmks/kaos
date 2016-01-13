@@ -61,7 +61,7 @@ CHECKSUM	equ	-(MAGIC + FLAGS)	; checksum of above, to prove we are multiboot
 	dd	0		; header_addr   (if flag bit 16 set)
 	dd	0		; bss end addr  (if flag bit 16 set)
 	dd	0		; entry addr    (if flag bit 16 set)
-	dd	1		; 1-textmode ; 0-linear graphics mode
+	dd	0		; 1-textmode ; 0-linear graphics mode
 	dd	1280		; width
 	dd	720		; height
 	dd	8		; depth
@@ -78,8 +78,9 @@ stack_top:
 	section	.text
 	bits	32
 _start:	mov	esp, stack_top
-	push eax
-	push ebx
+	mov	[0x40000], ebx
+	push	eax
+	push	ebx
 	call	kernel_main
 	cli
 .hang:	hlt
