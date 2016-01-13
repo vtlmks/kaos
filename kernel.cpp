@@ -173,7 +173,6 @@ void termWriteHex(uint32_t value) {
 
 void writeString(const char *stringBuffer) {
 	while(uint8_t character = *stringBuffer++) {
-
 		if(character == '\n') {
 			cursor.y++;
 			cursor.x = 0;
