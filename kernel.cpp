@@ -17,6 +17,7 @@
 #error "x86-elf compiler please"
 #endif
 
+/* remove later.
 enum vga_color {
 	COLOR_BLACK = 0,
 	COLOR_BLUE = 1,
@@ -35,6 +36,7 @@ enum vga_color {
 	COLOR_LIGHT_BROWN = 14,
 	COLOR_WHITE = 15,
 };
+*/
 
 struct VbeModeInfoBlock {
 // Mandatory information for all VBE revisions
@@ -129,8 +131,8 @@ struct MultibootInfo {
 	uint32_t					configTable;
 	uint32_t					bootLoaderName;
 	uint32_t					apmTable;
-	VbeInfoBlock			*vbeInfoBlock;					// control_info
-	VbeModeInfoBlock	*vbeModeInfoBlock;				// mode_info
+	VbeInfoBlock			*vbeInfoBlock;
+	VbeModeInfoBlock	*vbeModeInfoBlock;
 	uint16_t					vbeMode;
 	uint16_t					vbeInterfaceSegment;
 	uint16_t					vbeInterfaceOffset;
@@ -145,6 +147,12 @@ struct vec2 {
 vec2 cursor = {0,0};
 uint32_t	fontColor = 0xffaaaaaa;
 uint32_t	backColor = 0xff0e1723;
+
+VbeModeInfoBlock	*modeInfo;
+uint32_t					*frameBuffer;
+PSF2							*psf;
+uint8_t						*font;
+
 
 size_t strlen(const char *str) {
 	size_t result = 0;
@@ -163,18 +171,33 @@ void termWriteHex(uint32_t value) {
 //	termWriteString(temp);
 }
 
+void writeString(const char *stringBuffer) {
+	while(uint8_t character = *stringBuffer++) {
+
+		if(character == '\n') {
+			cursor.y++;
+			cursor.x = 0;
+		} else {
+			for(uint32_t row = 0; row < psf->height; ++row) { //psf->height; ++y) {
+				uint16_t fontRowData = font[(character * psf->charSize) + row];
+				for(uint32_t pixel = 0; pixel < psf->width; ++pixel) {
+					if (fontRowData & 1 << pixel) {
+						frameBuffer[cursor.x*8 + ((row + (cursor.y*psf->height)) * 1280) + (8 - pixel)] = fontColor;
+					}
+				};
+			};
+			cursor.x++;
+		}
+	}
+}
+
 #if defined(__cplusplus)
 extern "C"
 #endif
-void kernel_main(MultibootInfo *m) {
+void kernelMain(MultibootInfo *m) {
 //	termInit();
 
-	VbeModeInfoBlock	*mi						= m->vbeModeInfoBlock;
-	uint32_t					*frameBuffer	= (uint32_t *)mi->PhysBasePtr;
-	PSF2							*psf					= (PSF2 *)&fontLat2Terminus16;
-	uint8_t						*font					= (uint8_t *)(psf) + psf->headerSize;
-
-	const char *stringBuffer =
+	const char *string =
 		"KAOS v0.0.0 - Created by Mindkiller Systems.\n"
 		"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n"
 		"A multilevel feedback queue should give preference to short jobs, I/O bound processes.\n\n"
@@ -204,33 +227,22 @@ void kernel_main(MultibootInfo *m) {
 
 
 	uint32_t *ptr = (uint32_t *)0x40000;		// so we can write stuff and read out from qemu -monitor stdio
-	ptr[0] = strlen(stringBuffer);
+//	ptr[0] = strlen(stringBuffer);
 
+	modeInfo		= m->vbeModeInfoBlock;
+	frameBuffer	= (uint32_t *)modeInfo->PhysBasePtr;
+	psf					= (PSF2 *)&fontLat2Terminus16;
+	font				= (uint8_t *)(psf) + psf->headerSize;
 
 	for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
 		frameBuffer[i] = backColor;
 	}
 
-	while(*stringBuffer) {
-		uint8_t character = *stringBuffer++;
-
-		if(character == '\n') {
-			cursor.y++;
-			cursor.x = 0;
-		} else {
-			for(uint32_t row = 0; row < psf->height; ++row) { //psf->height; ++y) {
-				uint16_t fontRowData = font[(character * psf->charSize) + row];
-				for(uint32_t pixel = 0; pixel < psf->width; ++pixel) {
-					if (fontRowData & 1 << pixel) {
-						frameBuffer[cursor.x*8 + ((row + (cursor.y*psf->height)) * 1280) + (8 - pixel)] = fontColor;
-					}
-				};
-			};
-			cursor.x++;
-		}
-	}
+	cursor.x = 0;
+	cursor.y = 0;
+	writeString(string);
 
 	while(1) {
-		backColor++;
+	backColor++;
 	}
 }

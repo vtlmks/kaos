@@ -73,13 +73,13 @@ stack_bottom:
 stack_top:
 
 	global _start
-	extern	kernel_main
+	extern	kernelMain
 
 	section	.text
 	bits	32
 _start:	mov	esp, stack_top
 	push	ebx
-	call	kernel_main
+	call	kernelMain
 	cli
 .hang:	hlt
 	jmp	.hang
