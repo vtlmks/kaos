@@ -151,14 +151,18 @@ struct vec2 {
 	uint8_t	y;
 };
 
-vec2 cursor				= {0,0};
-uint32_t	frontColor	= 0xfff0a438;
-uint32_t	backColor	= 0xff0c1420;
+vec2		cursor		= {0,0};
+
+#define defaultFrontColor 0xfff0a438
+#define defaultBackColor 0xff0c1420
+
+uint32_t	backColor	= defaultBackColor;
+uint32_t	frontColor	= defaultFrontColor;
 
 VbeModeInfoBlock	*modeInfo;
-uint32_t					*frameBuffer;
-PSF2							*psf;
-uint8_t						*font;
+uint32_t				*frameBuffer;
+PSF2					*psf;
+uint8_t				*font;
 
 
 size_t strlen(const char *str) {
@@ -170,22 +174,31 @@ size_t strlen(const char *str) {
 }
 
 void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
+	uint16_t fontRowData = 0;
 	while(uint8_t character = *stringBuffer++) {
 		if(character == '\n') {
 			cur->y++;
 			cur->x = 0;
 		} else {
-			for(uint32_t row = 0; row < psf->height; ++row) { //psf->height; ++y) {
-				uint16_t fontRowData = font[(character * psf->charSize) + row];
-				for(uint32_t pixel = 0; pixel < psf->width; ++pixel) {
-					if (fontRowData & 1 << pixel) {
-						frameBuffer[cur->x*8 + ((row + (cur->y*psf->height)) * 1280) + (8 - pixel)] = frontColor;
-					}
-				};
+			for(uint32_t row = 0; row < psf->height; ++row) {
+				if((fontRowData = font[(character * psf->charSize) + row])) {
+					for(uint32_t pixel = 0; pixel < psf->width; ++pixel) {
+						if (fontRowData & 1 << pixel) {
+							frameBuffer[(cur->x * 8) + ((row + (cur->y * psf->height)) * 1280) + (8 - pixel)] = frontColor;
+						}
+					};
+				} else {
+					continue;
+				}
 			};
 			cur->x++;
 		}
 	}
+}
+
+void writeString(const char *stringBuffer, uint32_t color) {
+	frontColor = color;
+	writeString(stringBuffer, &cursor);
 }
 
 void writeHex(uint32_t value) {
@@ -198,6 +211,53 @@ void writeHex(uint32_t value) {
 	writeString(temp);
 }
 
+void writeHex(uint32_t value, uint32_t color) {
+	frontColor = color;
+	writeHex(value);
+}
+
+/*
+** dumpMemory(pointer, length, type)
+**
+** pointer	- raw linear pointer to where we should start reading information to write to console
+** length	- how much of it should we write?
+** type		- b,w,d,q,128bit,256bit,512bit...
+*/
+
+enum class Type {
+	BYTE = 0,
+	WORD,
+	LONG,
+	QUAD
+};
+
+// TODO(peter): Change type to an enum.
+void dumpMemory(size_t *pointer, size_t length, Type type = Type::LONG) {
+
+	switch(type) {
+		case Type::BYTE: {
+		} break;
+
+		case Type::WORD: {
+		} break;
+
+		case Type::LONG: {
+			writeHex((uint32_t)pointer);
+			writeString(": ");
+			for(size_t i = 0; i < length; i += 4) {
+				writeHex((uint32_t)pointer[i]);
+//				pointer += 4;
+				writeString(" ");
+			}
+			writeString((char *)pointer);
+		} break;
+
+		case Type::QUAD: {
+		} break;
+
+	}
+
+}
 
 #if defined(__cplusplus)
 extern "C"
@@ -211,26 +271,27 @@ void kernelMain(MultibootInfo *m) {
 
 	modeInfo		= m->vbeModeInfoBlock;
 	frameBuffer	= (uint32_t *)modeInfo->PhysBasePtr;
-	psf					= (PSF2 *)&fontLat2Terminus16;
-	font				= (uint8_t *)(psf) + psf->headerSize;
+	psf			= (PSF2 *)&fontLat2Terminus16;
+	font			= (uint8_t *)(psf) + psf->headerSize;
 
 	for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
 		frameBuffer[i] = backColor;
 	}
 
-	cursor.x = 0;
-	cursor.y = 0;
+	cursor.x		= 0;
+	cursor.y		= 0;
 	frontColor	= 0xfff0a438;
 
 	writeString("    KAOS v0.0.0 - Created by Mindkiller Systems.\n"
-    			"    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-				);
+    				"    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 
-	vec2 pos = {30, 30};
-	writeString("This is a test\n", &pos);;
-	writeString("This is a test 0x");
-	writeHex(0x4748494a);
+//	vec2 pos = {30, 30};
+//	writeString("This is a test\n", &pos);;
+//	writeString("This is a test 0x", 0xff474849);
+//	writeHex(0x4748494a, defaultFrontColor);
 	writeString("\n");
+
+	dumpMemory((size_t *)(size_t)((m->vbeInfoBlock->OemVendorNamePtr_Seg << 4) + m->vbeInfoBlock->OemVendorNamePtr_Off), 0x8);
 
 //	while(1) {
 	// for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
