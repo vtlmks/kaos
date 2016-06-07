@@ -1,28 +1,42 @@
+
 ENTRY(start)
 
 SECTIONS {
-	. = 1M;
+  . = 100000;
 
-	.boot : {
-		*(.multiboot)
-	}
+  .rodata :
+  {
+    /* ensure that the multiboot header is at the beginning */
+    KEEP(*(.multiboot_header))
+    *(.rodata .rodata.*)
+    . = ALIGN(4K);
+  }
 
-	.text BLOCK(4K) : ALIGN(4K) {
-		*(.text)
-	}
+  .text :
+  {
+    *(.text .text.*)
+    . = ALIGN(4K);
+  }
 
-	.rodata BLOCK(4K) : ALIGN(4K) {
-		*(.rodata)
-	}
+  .data :
+  {
+    *(.data .data.*)
+    . = ALIGN(4K);
+  }
 
-	.data BLOCK(4K) : ALIGN(4K) {
-		*(.data)
-	}
+  .bss :
+  {
+    *(.bss .bss.*)
+    . = ALIGN(4K);
+  }
 
-	.bss BLOCK(4K) : ALIGN(4K) {
-		*(COMMON)
-		*(.bss)
-		*(.bootstrap_stack)
-	}
+  .data.rel.ro : ALIGN(4K) {
+    *(.data.rel.ro.local*) *(.data.rel.ro .data.rel.ro.*)
+    . = ALIGN(4K);
+  }
 
+  .gcc_except_table : ALIGN(4K) {
+    *(.gcc_except_table)
+    . = ALIGN(4K);
+  }
 }

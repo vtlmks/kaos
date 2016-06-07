@@ -8,8 +8,15 @@
 #include <stdbool.h>
 #endif
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+
+
+#include "multiboot2.h"
+
+
+#include "types.h"
 
 #include "psf.h"
 #include "fontLat2Terminus16.h"
@@ -22,147 +29,228 @@
 // #error "x86-elf compiler please"
 // #endif
 
-// TODO(peter): mokaos
+#define defaultFrontColor	0xfff0a438
+#define defaultBackColor	0xff0c1420
 
-/* remove later.
-enum vga_color {
-	COLOR_BLACK = 0,
-	COLOR_BLUE = 1,
-	COLOR_GREEN = 2,
-	COLOR_CYAN = 3,
-	COLOR_RED = 4,
-	COLOR_MAGENTA = 5,
-	COLOR_BROWN = 6,
-	COLOR_LIGHT_GREY = 7,
-	COLOR_DARK_GREY = 8,
-	COLOR_LIGHT_BLUE = 9,
-	COLOR_LIGHT_GREEN = 10,
-	COLOR_LIGHT_CYAN = 11,
-	COLOR_LIGHT_RED = 12,
-	COLOR_LIGHT_MAGENTA = 13,
-	COLOR_LIGHT_BROWN = 14,
-	COLOR_WHITE = 15,
-};
-*/
-
-struct VbeModeInfoBlock {
-	// Mandatory information for all VBE revisions
-	uint16_t	ModeAttributes;
-	uint8_t	WinAAttributes;
-	uint8_t	WinBAttributes;
-	uint16_t	WinGranularity;
-	uint16_t	WinSize;
-	uint16_t	WinASegment;
-	uint16_t	WinBSegment;
-	uint32_t	WinFuncPtr;
-	uint16_t	BytesPerScanLine;
-
-	// Mandatory information for VBE 1.2 and above
-	uint16_t	XResolution;
-	uint16_t	YResolution;
-	uint8_t	XCharSize;
-	uint8_t	YCharSize;
-	uint8_t	NumberOfPlanes;
-	uint8_t	BitsPerPixel;
-	uint8_t	NumberOfBanks;
-	uint8_t	MemoryModel;
-	uint8_t	BankSize;
-	uint8_t	NumberOfImagePages;
-	uint8_t	Reserved_page;
-
-	// Direct Color fields (required for direct/6 and YUV/7 memory models)
-	uint8_t	RedMaskSize;
-	uint8_t	RedFieldPosition;
-	uint8_t	GreenMaskSize;
-	uint8_t	GreenFieldPosition;
-	uint8_t	BlueMaskSize;
-	uint8_t	BlueFieldPosition;
-	uint8_t	RsvdMaskSize;
-	uint8_t	RsvdFieldPosition;
-	uint8_t	DirectColorModeInfo;
-
-	// Mandatory information for VBE 2.0 and above
-	uint32_t	PhysBasePtr;
-	uint32_t	OffScreenMemOffset;
-	uint16_t	OffScreenMemSize;
-
-	// Mandatory information for VBE 3.0 and above
-	uint16_t	LinBytesPerScanLine;
-	uint8_t	BnkNumberOfPages;
-	uint8_t	LinNumberOfPages;
-	uint8_t	LinRedMaskSize;
-	uint8_t	LinRedFieldPosition;
-	uint8_t	LinGreenMaskSize;
-	uint8_t	LinGreenFieldPosition;
-	uint8_t	LinBlueMaskSize;
-	uint8_t	LinBlueFieldPosition;
-	uint8_t	LinRsvdMaskSize;
-	uint8_t	LinRsvdFieldPosition;
-	uint32_t	MaxPixelClock;
-	uint8_t	Reserved[189];
+struct pos {
+	u8	x;
+	u8	y;
 };
 
-struct VbeInfoBlock {
-	uint8_t	VbeSignature[4];
-	uint16_t	VbeVersion;
-	uint16_t	OemStringPtr_Off;
-	uint16_t	OemStringPtr_Seg;
-	uint8_t	Capabilities[4];
-	uint16_t	VideoModePtr_Off;
-	uint16_t	VideoModePtr_Seg;
-	uint16_t	TotalMemory;
-	uint16_t	OemSoftwareRev;
-	uint16_t	OemVendorNamePtr_Off;
-	uint16_t	OemVendorNamePtr_Seg;
-	uint16_t	OemProductNamePtr_Off;
-	uint16_t	OemProductNamePtr_Seg;
-	uint16_t	OemProductRevPtr_Off;
-	uint16_t	OemProductRevPtr_Seg;
-	uint16_t	Reserved[111]; // used for dynamicly generated mode list
-	uint8_t	OemData[256];
+struct position {
+	u8	x;
+	u8	y;
 };
 
-struct MultibootInfo {
-	uint32_t	         flags;
-	uint32_t	         memLower;
-	uint32_t	         memUpper;
-	uint32_t	         bootDevice;
-	uint32_t	         cmdLine;
-	uint32_t	         modsCount;
-	uint32_t	         modsAddr;
-	uint32_t	         syms[4];
-	uint32_t	         mmapLength;
-	uint32_t	         mmapAddr;
-	uint32_t	         drivesLength;
-	uint32_t	         drivesAddr;
-	uint32_t	         configTable;
-	uint32_t	         bootLoaderName;
-	uint32_t	         apmTable;
-	VbeInfoBlock		*vbeInfoBlock;
-	VbeModeInfoBlock	*vbeModeInfoBlock;
-	uint16_t			   vbeMode;
-	uint16_t			   vbeInterfaceSegment;
-	uint16_t			   vbeInterfaceOffset;
-	uint16_t			   vbeInterfaceLength;
+struct tty {
+	u8	width;
+	u8	height;
+	position	cursor;
 };
 
-struct vec2 {
-	uint8_t	x;
-	uint8_t	y;
-};
+u08					*font;
+u16					*frameBuffer;
 
-vec2		cursor		= {0,0};
+u16					charColor	= 0x0e;
+u32					backColor	= defaultBackColor;
+u32					frontColor	= defaultFrontColor;
 
-#define defaultFrontColor 0xfff0a438
-#define defaultBackColor 0xff0c1420
-
-uint32_t	backColor	= defaultBackColor;
-uint32_t	frontColor	= defaultFrontColor;
-
-VbeModeInfoBlock	*modeInfo;
-uint32_t				*frameBuffer;
 PSF2					*psf;
-uint8_t				*font;
+tty defaultTTY		= {};
+
+void putchar(int c) {
+	if(c == '\n') {
+		defaultTTY.cursor.x = 0;
+		++defaultTTY.cursor.y;
+		return;
+	}
+	u16 character = charColor << 8 | c;
+
+	frameBuffer[defaultTTY.cursor.x + defaultTTY.cursor.y * 80] = character;
+	defaultTTY.cursor.x++;
+}
+
+
+static void printchar(char **str, int c) {
+	if(str) {
+		**str = c;
+		++(*str);
+	} else {
+		putchar(c);
+	}
+}
+
+#define PAD_RIGHT	1
+#define PAD_ZERO	2
+
+static int prints(char **out, const char *string, int width, int pad) {
+	register int pc = 0, padchar = ' ';
+
+	if(width > 0) {
+		register int len = 0;
+		register const char *ptr;
+		for(ptr = string; *ptr; ++ptr) {
+			++len;
+		}
+		if(len >= width) {
+			width = 0;
+		} else  {
+			width -= len;
+		}
+		if(pad & PAD_ZERO) {
+			padchar = '0';
+		}
+	}
+
+	if(!(pad & PAD_RIGHT)) {
+		for(; width > 0; --width) {
+			printchar(out, padchar);
+			++pc;
+		}
+	}
+
+	for(; *string ; ++string) {
+		printchar(out, *string);
+		++pc;
+	}
+
+	for(; width > 0; --width) {
+		printchar(out, padchar);
+		++pc;
+	}
+
+	return pc;
+}
+
+#define BUFFER_LENGTH 20
+
+static int printInteger(char **out, s64 i, int b, int sg, int width, int pad, int letbase) {
+	char	buffer[BUFFER_LENGTH];
+	char	*s;
+	u32	t;
+	u32	neg = 0;
+	u32	chars = 0;
+	u64	u = i;
+
+	if(i == 0) {
+		buffer[0] = '0';
+		buffer[1] = '\0';
+		return prints(out, buffer, width, pad);
+	}
+
+	if(sg && b == 10 && i < 0) {
+		neg = 1;
+		u = -i;
+	}
+
+	s = buffer + BUFFER_LENGTH - 1;
+	*s = '\0';
+
+	while(u) {
+		t = u % b;
+		if(t >= 10) {
+			t += letbase - '0' - 10;
+		}
+		*--s = t + '0';
+		u /= b;
+	}
+
+	if(neg) {
+		if(width &&(pad & PAD_ZERO)) {
+			printchar(out, '-');
+			++chars;
+			--width;
+		} else {
+			*--s = '-';
+		}
+	}
+
+	return chars + prints(out, s, width, pad);
+}
+
+static int print(char **out, const char *format, va_list args) {
+	register int width, pad;
+	register int pc = 0;
+	char scr[2];
+
+	for(; *format != 0; ++format) {
+		if(*format == '%') {
+			++format;
+			width = pad = 0;
+			if(*format == '\0') break;
+			if(*format == '%') goto out;
+			if(*format == '-') {
+				++format;
+				pad = PAD_RIGHT;
+			}
+			while(*format == '0') {
+				++format;
+				pad |= PAD_ZERO;
+			}
+			for(; *format >= '0' && *format <= '9'; ++format) {
+				width *= 10;
+				width += *format - '0';
+			}
+			if(*format == 's') {
+				register char *s =(char *)va_arg(args, int);
+				pc += prints(out, s ? s : "(null)", width, pad);
+				continue;
+			}
+			if(*format == 'd') {
+				pc += printInteger(out, va_arg(args, s64), 10, 1, width, pad, 'a');
+				continue;
+			}
+			if(*format == 'x') {
+				pc += printInteger(out, va_arg(args, s64), 16, 0, width, pad, 'a');
+				continue;
+			}
+			if(*format == 'X') {
+				pc += printInteger(out, va_arg(args, s64), 16, 0, width, pad, 'A');
+				continue;
+			}
+			if(*format == 'u') {
+				pc += printInteger(out, va_arg(args, s64), 10, 0, width, pad, 'a');
+				continue;
+			}
+			if(*format == 'c') {
+				scr[0] =(char)va_arg(args, int);
+				scr[1] = '\0';
+				pc += prints(out, scr, width, pad);
+				continue;
+			}
+		} else {
+out:		printchar(out, *format);
+			++pc;
+		}
+	}
+	if(out)**out = '\0';
+	va_end(args);
+	return pc;
+}
+
+int kprintf(const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	return print(0, format, args);
+}
+
+int sprintf(char *out, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	return print(&out, format, args);
+}
+
+//
+// void	vtClear();
+// void	vtWriteChar(char c);
+// void	vtWriteChar(char c, pos p);
+// void	vtWriteChar(char c, u8 color);
+// void	vtWriteChar(char c, u8 color, pos p);
+// void	vtWriteString(char *s);
+// void	vtWriteString(char *s, pos p);
+// void	vtWriteString(char *s, u8 color);
+// void	vtWriteString(char *s, u8 color, pos p);
+// void	vtWriteHex();
 
 
 size_t strlen(const char *str) {
@@ -173,18 +261,18 @@ size_t strlen(const char *str) {
 	return result;
 }
 
-void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
-	uint16_t fontRowData = 0;
-	while(uint8_t character = *stringBuffer++) {
+void writeString(const char *stringBuffer, position *cur = &defaultTTY.cursor) {
+	u16 fontRowData = 0;
+	while(u8 character = *stringBuffer++) {
 		if(character == '\n') {
 			cur->y++;
 			cur->x = 0;
 		} else {
-			for(uint32_t row = 0; row < psf->height; ++row) {
-				if((fontRowData = font[(character * psf->charSize) + row])) {
-					for(uint32_t pixel = 0; pixel < psf->width; ++pixel) {
-						if (fontRowData & 1 << pixel) {
-							frameBuffer[(cur->x * 8) + ((row + (cur->y * psf->height)) * 1280) + (8 - pixel)] = frontColor;
+			for(u32 row = 0; row < psf->height; ++row) {
+				if((fontRowData = font[(character * psf->charSize)+ row])) {
+					for(u32 pixel = 0; pixel < psf->width; ++pixel) {
+						if(fontRowData & 1 << pixel) {
+							frameBuffer[(cur->x * 8)+((row +(cur->y * psf->height))* 1280)+(8 - pixel)] = frontColor;
 						}
 					};
 				} else {
@@ -198,22 +286,7 @@ void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
 
 void writeString(const char *stringBuffer, uint32_t color) {
 	frontColor = color;
-	writeString(stringBuffer, &cursor);
-}
-
-void writeHex(uint32_t value) {
-	static const char hexChars[] = "0123456789ABCDEF";
-	char temp[9];
-	for (size_t i = 0, j = (8-1)*4 ; i<8; ++i, j -= 4) {
-		temp[i] = hexChars[(value >> j) & 0xf];
-	}
-	temp[8] = 0;
-	writeString(temp);
-}
-
-void writeHex(uint32_t value, uint32_t color) {
-	frontColor = color;
-	writeHex(value);
+	writeString(stringBuffer, &defaultTTY.cursor);
 }
 
 /*
@@ -242,10 +315,10 @@ void dumpMemory(size_t *pointer, size_t length, Type type = Type::LONG) {
 		} break;
 
 		case Type::LONG: {
-			writeHex((uint32_t)pointer);
+//			writeHex((uint32_t)pointer);
 			writeString(": ");
 			for(size_t i = 0; i < length; i += 4) {
-				writeHex((uint32_t)pointer[i]);
+//				writeHex((uint32_t)pointer[i]);
 //				pointer += 4;
 				writeString(" ");
 			}
@@ -262,40 +335,124 @@ void dumpMemory(size_t *pointer, size_t length, Type type = Type::LONG) {
 #if defined(__cplusplus)
 extern "C"
 #endif
-void kernelMain(MultibootInfo *m) {
+void kernelMain(unsigned long m) {
+
+	frameBuffer =(u16 *)0xb8000;
+	defaultTTY.cursor = {0,0};
+
+	multiboot_tag	*tag =(multiboot_tag *)(m + 8);
+	u32				size = *(unsigned *)m;
+
+// Timing
+// The easiest method for the timings is to use the PIT's mode 0.
+// Write 0x30 to IO port 0x43 (select mode 0 for counter 0),
+//
+// then write your count value to 0x40, LSB first (e.g. write 0xA9 then 0x4 for a millisecond).
+//
+// To check if counter has finished, write 0xE2 to IO port 0x43, then read a status byte from
+// port 0x40. If the 7th bit is set, then it has finished.
+
+
+
+	kprintf("Size of Multiboot structure: %d\n", size);
+
+	for(; tag->type != MULTIBOOT_TAG_TYPE_END; tag =(multiboot_tag *)((u8 *)tag +((tag->size + 7)& ~ 7))) {
+		switch(tag->type) {
+			case MULTIBOOT_TAG_TYPE_CMDLINE:
+				break;
+
+			case MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME:
+				break;
+
+			case MULTIBOOT_TAG_TYPE_MODULE:
+				break;
+
+			case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
+				kprintf("\nMemInfo - Lower: %dkb(max 640kb)- Upper %dkb(from 1mb and up)\n",(u32)((multiboot_tag_basic_meminfo *)tag)->mem_lower,(u32)((multiboot_tag_basic_meminfo *)tag)->mem_upper);
+				break;
+
+			case MULTIBOOT_TAG_TYPE_BOOTDEV:
+				break;
+
+			case MULTIBOOT_TAG_TYPE_MMAP: {
+					multiboot_tag_mmap *mmap =(multiboot_tag_mmap *)tag;
+
+					kprintf("\nMMAP\n");
+					for(unsigned int i = 0; i <(mmap->size/mmap->entry_size); ++i) {
+						kprintf(" Offset: %016x Length: %016x\n",(u64)mmap->entries[i].addr,(u64)mmap->entries[i].len);
+					}
+
+				} break;
+
+			case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
+				multiboot_tag_framebuffer *tagfb =(multiboot_tag_framebuffer *)tag;
+
+				kprintf("\nFramebuffer\n - Address: %016x\n",(u64)tagfb->common.framebuffer_addr);
+
+				kprintf(" - Type: ");
+
+				switch(tagfb->common.framebuffer_type) {
+					case MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED:
+						kprintf("Indexed\n");
+						break;
+
+					case MULTIBOOT_FRAMEBUFFER_TYPE_RGB:
+						kprintf("RGB\n");
+						break;
+
+					case MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT:
+						kprintf("EGA TEXT\n");
+						break;
+//					case default:
+				}
+				switch(tagfb->common.framebuffer_bpp) {
+					case 8:
+					case 15:
+					case 16:
+					case 24:
+					case 32:
+						break;
+				}
+		}
+	}
+
+
+	while(1) {}
+
 //	termInit();
 
 
-//	uint32_t *ptr = (uint32_t *)0x40000;		// so we can write stuff and read out from qemu -monitor stdio
+//	uint32_t *ptr =(uint32_t *)0x40000;		// so we can write stuff and read out from qemu -monitor stdio
 //	ptr[0] = strlen(stringBuffer);
 
-	modeInfo		= m->vbeModeInfoBlock;
-	frameBuffer	= (uint32_t *)modeInfo->PhysBasePtr;
-	psf			= (PSF2 *)&fontLat2Terminus16;
-	font			= (uint8_t *)(psf) + psf->headerSize;
+//	modeInfo		= m->vbeModeInfoBlock;
+	frameBuffer	= 0;//(size_t *)modeInfo->PhysBasePtr;
+	psf			=(PSF2 *)&fontLat2Terminus16;
+	font			=(uint8_t *)(psf)+ psf->headerSize;
 
 	for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
 		frameBuffer[i] = backColor;
 	}
 
-	cursor.x		= 0;
-	cursor.y		= 0;
+	defaultTTY.cursor.x		= 0;
+	defaultTTY.cursor.y		= 0;
 	frontColor	= 0xfff0a438;
 
-	writeString("    KAOS v0.0.0 - Created by Mindkiller Systems.\n"
-    				"    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	// writeString("    KAOS v0.0.0 - Created by Mindkiller Systems.\n"
+   //  				"    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+//	writeHex(uint32_t(&modeInfo));
 
-//	vec2 pos = {30, 30};
+//	position pos = {30, 30};
 //	writeString("This is a test\n", &pos);;
 //	writeString("This is a test 0x", 0xff474849);
 //	writeHex(0x4748494a, defaultFrontColor);
 	writeString("\n");
 
-	dumpMemory((size_t *)(size_t)((m->vbeInfoBlock->OemVendorNamePtr_Seg << 4) + m->vbeInfoBlock->OemVendorNamePtr_Off), 0x8);
+//	dumpMemory((size_t *)(size_t)((m->vbeInfoBlock->OemVendorNamePtr_Seg << 4)+ m->vbeInfoBlock->OemVendorNamePtr_Off), 0x8);
 
-//	while(1) {
+	while(1) {
 	// for(size_t i = 0; i < 1280*720; ++i) {	// clear screen
 	// 	frameBuffer[i] = backColor;
-	// }
+	}
 
 }
