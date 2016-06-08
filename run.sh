@@ -1,7 +1,9 @@
 #!/usr/bin/bash
 
+BUILDPATH=build
+
 mkdir -p isodir/boot/grub
-cp kaos.bin isodir/boot/
+cp $BUILDPATH/kaos.bin isodir/boot/
 cp grub.cfg isodir/boot/grub/
 grub-mkrescue -o kaos.iso isodir >/dev/null 2>&1
 
