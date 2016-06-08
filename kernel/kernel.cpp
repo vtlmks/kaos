@@ -343,10 +343,9 @@ void kernelMain(unsigned long m) {
 	multiboot_tag	*tag =(multiboot_tag *)(m + 8);
 	u32				size = *(unsigned *)m;
 
-// Timing
 // The easiest method for the timings is to use the PIT's mode 0.
-// Write 0x30 to IO port 0x43 (select mode 0 for counter 0),
 //
+// Write 0x30 to IO port 0x43 (select mode 0 for counter 0),
 // then write your count value to 0x40, LSB first (e.g. write 0xA9 then 0x4 for a millisecond).
 //
 // To check if counter has finished, write 0xE2 to IO port 0x43, then read a status byte from
@@ -367,9 +366,10 @@ void kernelMain(unsigned long m) {
 			case MULTIBOOT_TAG_TYPE_MODULE:
 				break;
 
-			case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
-				kprintf("\nMemInfo - Lower: %dkb(max 640kb)- Upper %dkb(from 1mb and up)\n",(u32)((multiboot_tag_basic_meminfo *)tag)->mem_lower,(u32)((multiboot_tag_basic_meminfo *)tag)->mem_upper);
-				break;
+			case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO: {
+					multiboot_tag_basic_meminfo *meminfo = (multiboot_tag_basic_meminfo *)tag;
+					kprintf("\nMemInfo - Lower: %dkb(max 640kb)- Upper %dkb(from 1mb and up)\n", meminfo->mem_lower, meminfo->mem_upper);
+				} break;
 
 			case MULTIBOOT_TAG_TYPE_BOOTDEV:
 				break;
@@ -377,9 +377,24 @@ void kernelMain(unsigned long m) {
 			case MULTIBOOT_TAG_TYPE_MMAP: {
 					multiboot_tag_mmap *mmap =(multiboot_tag_mmap *)tag;
 
-					kprintf("\nMMAP\n");
-					for(unsigned int i = 0; i <(mmap->size/mmap->entry_size); ++i) {
-						kprintf(" Offset: %016x Length: %016x\n",(u64)mmap->entries[i].addr,(u64)mmap->entries[i].len);
+					kprintf("\nMMAP (%d entries).\n", (mmap->size / mmap->entry_size));
+					for(unsigned int i = 0; i < (mmap->size/mmap->entry_size); ++i) {
+						if(mmap->entries[i].addr < 0x100000) continue;
+						kprintf(" Offset: %016x Length: %016x Type: ",(u64)mmap->entries[i].addr, (u64)mmap->entries[i].len);
+
+						switch(mmap->entries[i].type) {
+							case 1:
+								kprintf("Available RAM.\n");
+								break;
+							case 3:
+								kprintf("Usable memory holding ACPI information.\n");
+								break;
+							case 4:
+								kprintf("Reserved memory, has to be preserved on hibernation.\n");
+								break;
+							default:
+								kprintf("Reserved memory/area.\n");
+						}
 					}
 
 				} break;
