@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+mkdir -p build
+
 #PATH=~/x-tools/i386-kaos-elf/bin/:$PATH
 PATH=~/x-tools/x86_64-kaos-elf/bin/:$PATH
 
