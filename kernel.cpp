@@ -32,10 +32,10 @@
 #define defaultFrontColor	0xfff0a438
 #define defaultBackColor	0xff0c1420
 
-struct pos {
-	u8	x;
-	u8	y;
-};
+// struct pos {
+// 	u8	x;
+// 	u8	y;
+// };
 
 struct position {
 	u8	x;
@@ -48,15 +48,15 @@ struct tty {
 	position	cursor;
 };
 
-u08					*font;
-u16					*frameBuffer;
+u08	*font;
+u16	*frameBuffer;
 
-u16					charColor	= 0x0e;
-u32					backColor	= defaultBackColor;
-u32					frontColor	= defaultFrontColor;
+u16	charColor	= 0x0e;
+u32	backColor	= defaultBackColor;
+u32	frontColor	= defaultFrontColor;
 
-PSF2					*psf;
-tty defaultTTY		= {};
+PSF2	*psf;
+tty	defaultTTY	= {};
 
 void putchar(int c) {
 	if(c == '\n') {

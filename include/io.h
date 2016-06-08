@@ -1,9 +1,6 @@
 #ifndef __IO_H__
 #define __IO_H__
 
-#include <types.h>
-
-
 static inline u8 out8(u16 port, u8 value) {
 	asm volatile("outb %1, %0" : : "dN" (port), "a" (value));
 	return value;
