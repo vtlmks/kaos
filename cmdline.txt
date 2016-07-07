@@ -1,0 +1,2 @@
+
+qemu-system-x86_64w.exe -machine q35 -m 5G -cpu IvyBridge -cdrom "d:\archlinux-2016.07.01-dual.iso"
