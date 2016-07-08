@@ -137,6 +137,8 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableMatrixMultiplyLibraryCall>Default</EnableMatrixMultiplyLibraryCall>
       <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <OmitDefaultLibName>true</OmitDefaultLibName>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
     </ClCompile>
     <Lib>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
