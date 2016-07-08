@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 	readfile(argv[2], 0x0200);
 	readfile(argv[3], 0x2200);
 
-	tempfile = fopen("floppy.img", "w");
+	tempfile = fopen("floppy.img", "wb+");
 	if(tempfile) {
 		fwrite(diskimage, 1, 1440*1024, tempfile);
 		fclose(tempfile);
