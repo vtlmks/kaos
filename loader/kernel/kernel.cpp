@@ -15,6 +15,8 @@ char *loaderSwitchingvideomode = " [  ] Switching to something better than 80x25
 char *loaderMessage = " [  ] Loading kernel";
 char *loaderOK = " [OK]";
 
+extern void loader();
+
 __declspec(naked) void loader() {
 
 	char *a = loaderWelcome;
@@ -29,7 +31,7 @@ __declspec(naked) void loader() {
 		mov	ss, ax
 		mov	esp, 0x80000
 		mov	ebp, esp
-		push	ebp
+		//push	ebp
 		sti
 	}
 

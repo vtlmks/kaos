@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{36276e22-6afc-47d4-a155-41e399009fa1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="loader.cpp">
@@ -23,5 +26,10 @@
     <NASM Include="loader.asm">
       <Filter>Source Files</Filter>
     </NASM>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="scripts\postbuild.bat">
+      <Filter>Scripts</Filter>
+    </None>
   </ItemGroup>
 </Project>
