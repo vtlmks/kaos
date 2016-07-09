@@ -18,7 +18,7 @@ void readfile(const char *filename, unsigned int offset) {
 }
 
 int main(int argc, char *argv[]) {
-	std::cout << "bootimage v0.47a (C)1944 mksys\n" << std::endl;
+	std::cout << "B0071MA63 v0.47a Copyright (c)2016 mksys\n" << std::endl;
 	readfile(argv[1], 0x0000);
 	readfile(argv[2], 0x0200);
 	readfile(argv[3], 0x2200);
