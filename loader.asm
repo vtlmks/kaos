@@ -53,7 +53,7 @@ Start	Cld
 	Mov	ss, ax
 	Mov	esp, 0x0000
 
-	Call	disablePic
+;	Call	disablePic
 ;	Call	disableNMI
 	Sti
 
@@ -68,10 +68,7 @@ Start	Cld
 
 	; load kernel code
 	Call	resetFloppy
-	Jmp $
-
 	Call	loadKernel
-
 
 	Cli
 	LGdt	[gdt]
@@ -79,7 +76,6 @@ Start	Cld
 	Mov	eax, cr0
 	Or	eax, 1
 	Mov	cr0, eax
-
 
 	Jmp	0x08:protectedMode
 
@@ -177,7 +173,6 @@ printString	PushAD
 loadKernel	PushAD
 	Push	es
 	Mov	ax, KernelOffset>>4	; This will be a temporary offset where we just load the kernel, then move it to end of memory.
-	Jmp $
 	Mov	es, ax
 	XOr	bx, bx	; Buffer offset
 	Mov	ah, 2	; Read sector
@@ -264,6 +259,10 @@ protectedMode	Cli
 	; Prepare to enter Long Mode
 	Call	setupPaging
 
+	Mov	eax, cr4
+	Or	eax, 1 << 5	; enable PAE
+	mov	cr4, eax
+
 	Mov	ecx, 0xc0000080	; EFER msr
 	Rdmsr
 	Or	eax, 1 << 8	; LM-bit
@@ -275,6 +274,8 @@ protectedMode	Cli
 	; Now we are in compatibility mode, one more thing before entering real 64bit mode
 
 	Lgdt	[GDT64.pointer]
+
+	Jmp $
 
 	; long jump to x64 from here.
 	Jmp	GDT64.code:KernelOffset
@@ -313,10 +314,6 @@ setupPaging	Mov	eax, cr0	; Disable paging
 
 	Mov	edi, 0x2000	; startup paging
 	Mov	cr3, edi
-
-	Mov	eax, cr4
-	Or	eax, 1 << 5	; enable PAE
-	mov	cr5, eax
 	Ret
 
 	[section .data]
