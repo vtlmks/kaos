@@ -1,5 +1,6 @@
 /*OUTPUT_FORMAT("binary")*/
 /*ENTRY(loader)*/
+/*
 SECTIONS
 {
 
@@ -20,4 +21,12 @@ SECTIONS
 	}
 
 	end = .; _end =.; __end =.;
+}
+*/
+ENTRY("_kernelstart")
+SECTIONS
+{
+	. = 0xFFFFFFFF;
+	.text : { *(.text) }
+	.data : { *(.data) } 
 }
