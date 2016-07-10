@@ -240,12 +240,20 @@
     <ClCompile Include="kernel.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <NASM Include="kernel.asm">
+    <NASM Include="load.asm">
       <FileType>Document</FileType>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-f win64 %(AdditionalOptions)</AdditionalOptions>
+      <GenerateDebugInformation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</GenerateDebugInformation>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
     </NASM>
   </ItemGroup>
   <ItemGroup>
     <None Include="scripts\postbuild.bat" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\assembler.h" />
+    <ClInclude Include="include\types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

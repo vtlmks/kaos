@@ -6,6 +6,8 @@
 **  All around rusty assembly, but it'll be fine...  mostly...
 */
 
+#include "include\assembler.h"
+#include "include\types.h"
 
 
 char *loaderWelcome = "Second stage loader started";
@@ -18,8 +20,6 @@ char *loaderOK = " [OK]";
 extern void loader();
 
 __declspec(naked) void loader() {
-
-	char *a = loaderWelcome;
 
 	_asm {
 		cli
@@ -35,6 +35,11 @@ __declspec(naked) void loader() {
 		sti
 	}
 
+	outb(0xbeef, 0xa1);
+
+	char *a = loaderWelcome;
+
+
 	volatile int b = 0;
 
 	for(unsigned int i = 0; i < 10; ++i) {
@@ -43,3 +48,5 @@ __declspec(naked) void loader() {
 
 	if(b) a[2] = 0;
 }
+
+
