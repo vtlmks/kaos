@@ -23,7 +23,7 @@ SECTIONS
 	end = .; _end =.; __end =.;
 }
 */
-ENTRY("_kernelstart")
+ENTRY("kernelmain")
 SECTIONS
 {
 	. = 0xFFFFFFFF;
