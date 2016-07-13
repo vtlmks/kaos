@@ -1,4 +1,6 @@
 #pragma once
 
-void ttyInit();
+#include <loaderinfo.h>
+
+void ttyInit(LoaderInfo *info);
 

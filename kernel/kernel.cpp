@@ -9,17 +9,17 @@
 #include "include\assembler.h"
 #include "include\types.h"
 #include "tty.h"
+#include <loaderinfo.h>
 //#include <intrin.h>
 
-extern "C" void kernelmain();
+extern "C" void kernelmain(LoaderInfo *info);
 
 void apicInit();
 
-void kernelmain() {
-
+void kernelmain(LoaderInfo *info) {
 	//(".intel_syntax noprefix");
-	asm("mov	$0xdeadbeef,%rax;");
-	ttyInit();
+//	asm("mov	$0xdeadbeef,%rax;");
+	ttyInit(info);
 	asm("jmp .;");
 //		"cli;"
 //		"mov	%ax,0x10;"

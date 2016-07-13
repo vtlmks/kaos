@@ -1,6 +1,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <loaderinfo.h>
 
 #include "include\types.h"
 #include "fontLat2Terminus16.h"
@@ -10,44 +11,48 @@
 #define	defaultFrontColor	0xfff0a438
 #define	defaultBackColor	0xff0c1420
 
-struct memInfo {
-	u64	from;
-	u64	length;
-	u32	flag;
-	u32	pad;
-};
-
-struct vec2 {
+struct Pos {
 	u8	x;
 	u8	y;
 };
 
-struct tty {
-	u8		width;
-	u8		height;
-	vec2	cursor;
+struct Screen {
+	u16 width;
+	u16 height;
 };
 
-u32	backColor;
-vec2	cursor;
-u16	charColor;
-tty	defaultTTY;
-u32	frontColor;
+struct TTY {
+	u16	widht;
+	u16	height;
+	u16	charWidth;
+	u16	charHeight;
+	Pos	cursorPos;
+};
 
 PSF2	*psf;
 u8		*font;
 u32	*frameBuffer;
 
+u32	backColor;
+u32	frontColor;
+
+u16	charColor;
+u16	screenWidth;
+u16	screenHeight;
+Pos	cursor;
+
+TTY	defaultTTY;
+
 void putchar(int c) {
 	if(c == '\n') {
-		defaultTTY.cursor.x = 0;
-		++defaultTTY.cursor.y;
+		defaultTTY.cursorPos.x = 0;
+		++defaultTTY.cursorPos.y;
 		return;
 	}
 	u16 character = charColor << 8 | c;
 
-	frameBuffer[defaultTTY.cursor.x + defaultTTY.cursor.y * 80] = character;
-	defaultTTY.cursor.x++;
+	frameBuffer[defaultTTY.cursorPos.x + defaultTTY.cursorPos.y * 80] = character;
+	defaultTTY.cursorPos.x++;
 }
 
 
@@ -231,7 +236,7 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
+void writeString(const char *stringBuffer, Pos *cur = &cursor) {
 	u16 fontRowData = 0;
 	while(u8 character = *stringBuffer++) {
 		if(character == '\n') {
@@ -242,7 +247,7 @@ void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
 				if((fontRowData = font[(character * psf->charSize) + row])) {
 					for(u32 pixel = 0; pixel < psf->width; ++pixel) {
 						if(fontRowData & 1 << pixel) {
-							frameBuffer[(cur->x * 8) + ((row + (cur->y * psf->height)) * 1280) + (8 - pixel)] = defaultFrontColor;
+							frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * 1280) + (psf->width - pixel)] = defaultFrontColor;
 						}
 					}
 				} else {
@@ -260,17 +265,18 @@ void writeString(const char *stringBuffer, u32 color) {
 	writeString(stringBuffer, &cursor);
 }
 
-void ttyInit() {
+void ttyInit(LoaderInfo *info) {
 	char buffer[200];
 
 	cursor		= {0, 0};
 	psf			= (PSF2 *)&fontLat2Terminus16;
 	font			= (u8 *)(psf) + psf->headerSize;
-	frameBuffer	= (u32*)0xfd000000;	// TODO: Fix this.
+
+	frameBuffer	= info->vesaPhysBasePtr;	// TODO: Fix this.
 	backColor	= defaultBackColor;
 	frontColor	= defaultFrontColor;
 
-	memInfo *e820Mem	= (memInfo *)0x1000;
+	memInfo *e820Mem	= info->memInfoPtr;
 
 	for(u32 i = 0; i < 1280 * 720; ++i) {	// clear screen
 		frameBuffer[i] = defaultBackColor;
@@ -278,10 +284,13 @@ void ttyInit() {
 
 	writeString("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
 
+	sprintf(buffer, "\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
+	writeString(buffer);
+
 	sprintf(buffer, "\nMemlist\n~~~~~~~\n");
 	writeString(buffer);
 
-	for(u8 i = 0; i < 6; ++i) {
+	for(u8 i = 0; i < info->memInfoCount; ++i) {
 		sprintf(buffer, " From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
 		writeString(buffer);
 	}

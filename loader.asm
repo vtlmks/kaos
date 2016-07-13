@@ -2,44 +2,36 @@
 	[Section	.text]
 	[Org	0x8000]
 
-%include "vesa.asm"
-
-	struc	MemInfo
-.baseAddrLow	resd	1
-.baseAddrHi	resd	1
-.lengthLow	resd	1
-.lengthHigh	resd	1
-.type	resd	1
-.pad	resd	1	; ACPI 3.0 24byte struct
-.size	endstruc
-
-KernelOffset	Equ	0x10000	; Where to load the kernel
-
-
-; Memorylayout
 ;
-; 0x00000 -> 0x00fff - Bios stuff
-; 0x01000 -> 0x01fff - Memory list from bios 0x8e20 function (128 entries from e820, space for 170 entries if we do it in EFI)
-; 0x02000 -> 0x02fff - Temporary storage for vesa-data
-; 0x07c00 -> 0x07f00 - Bootblock
-; 0x08000 -> 0x097ff - Loader	- Lets say it can't get larger than 6kb for the moment.
-; 0x09800 -> 0x0ffff - Stack (set to 0x10000)
+; Memorylayout First Megabyte
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ;
-; 0x10000 -> 0x1ffff - Load the kernel here ; 448kb free, then pagetables.
+; 0x00000 -> 0x00fff	- Bios stuff
+; 0x01000 -> 0x01fff	- Memory list from bios 0x8e20 function (128 entries from e820, space for 170 entries if we do it in EFI)
+; 0x02000 -> 0x02fff	- Temporary storage for vesa-data
+; 0x07c00 -> 0x07f00	- Bootblock
+; 0x08000 -> 0x097ff	- Loader	- Lets say it can't get larger than 6kb for the moment.
+; 0x09800 -> 0x0ffff	- Stack (set to 0x10000)
+;
+; 0x10000 -> 0x1ffff	- Load the kernel here ; 448kb free, then pagetables.
 ; 0x20000 -> 0x2ffff
 ; 0x30000 -> 0x3ffff
 ; 0x40000 -> 0x4ffff
 ; 0x50000 -> 0x5ffff
 ; 0x60000 -> 0x6ffff
 ; 0x70000 -> 0x7ffff
-; 0x80000 -> 0x8ffff - Space for temporary pagetables
-; 0x90000 -> 0x9fc00 - Check where the EBDA starts, pointer sholud be found at 0x040e (segment pointer, so multiply with 0x10) or something like that
-; 0xa0000 -> 0xbffff - VGA display memory
-; 0xc0000 -> 0xc7fff - [ROM] Video BIOS
-; 0xc8000 -> 0xeffff - [ROM & RAM] Mapped hardware & misc?
-; 0xf0000 -> 0xfffff - [ROM] Motherboard BIOS
+; 0x80000 -> 0x8ffff
+; 0x90000 -> 0x9fc00	- Temporary Pagetables to get to LM from PM; Check where the EBDA starts, segment pointer should be found at 0x040e
+; 0xa0000 -> 0xbffff	- VGA display memory
+; 0xc0000 -> 0xc7fff	- [ROM] Video BIOS
+; 0xc8000 -> 0xeffff	- [ROM & RAM] Mapped hardware & miscellaneous stuff(?)
+; 0xf0000 -> 0xfffff	- [ROM] Motherboard BIOS
+;
+; Memory layout - Userspace
 ;
 ; 0x0000000000000000 - 0x00007fffffffffff (=47 bits) user space, different per mm
+;
+; Memory layout - Kernelspace
 ;
 ; hole caused by [48:63] sign extension
 ;
@@ -54,6 +46,49 @@ KernelOffset	Equ	0x10000	; Where to load the kernel
 ; 0xffffffffff600000 - 0xffffffffffdfffff (=8 MB) vsyscalls
 ; 0xffffffffffe00000 - 0xffffffffffffffff (=2 MB) unused hole
 
+%include	"vesa.asm"	; vesa structures
+
+; Miscellaneous defines
+;
+KernelOffset	Equ	0x10000	; Where to load the kernel
+
+ScreenWidth	Equ	1280
+ScreenHeight	Equ	720
+ScreenBitsPerPixel	Equ	32
+
+; Defines for PM paging
+;
+PML4T	equ	0x90000	; 512Gb per entry
+PDPT	equ	0x91000	;   1Gb per entry
+PDT	equ	0x92000	;   2Mb per entry
+PDT2	equ	0x93000
+PT	equ	0x94000	;   4Kb per entry
+PT_FD000000	equ	0x95000
+PT_FD200000	equ	0x96000
+pgTableCount	equ	7
+
+; A pointer to this structure should be supplied to the 64bit kernel in a register.
+;
+	struc	loaderInformation
+.memInfoPtr	ResQ	1	; pointer to page where the memInfo structs are stored.
+.vesaPhysBasePtr	ResQ	1	; Pointer to the LFB
+.vesaBytesPerRow	ResW	1	;
+.vesaPixelWidth	ResW	1	;
+.vesaPixelHeight	ResW	1	;
+.memInfoCount	ResB	1	; number of memory regions 1 -> 128 (e820)
+.vesaPixelDepth	ResB	1	; Should never be anything but 32, but in case we want to support something else.
+
+.size	endstruc
+
+
+	struc	MemInfo
+.baseAddrLow	ResD	1
+.baseAddrHi	ResD	1
+.lengthLow	ResD	1
+.lengthHigh	ResD	1
+.type	ResD	1
+.pad	ResD	1	; ACPI 3.0 24byte struct
+.size	endstruc
 
 
 ; ==[ kernelLoader ]====================================================================[ 16bit ]==
@@ -69,31 +104,34 @@ Start	Cld
 	Mov	gs, ax
 	Mov	ss, ax
 	Mov	esp, 0xfff0
-
 	Sti
 
 	Call	enableA20
 	Call	enableSSE
+	;
 	Call	getMemorymap
-
+	;
 	Call	setVesamode
-
-	; load kernel code
+	;
+	; load kernel code TODO(peter): Move the 64bit kernel to high mem after entering protected mode and paging is enabled.
+	;
 	Call	resetFloppy
 	Call	loadKernel
-
+	;
+	; Setup and enter Protected mode, no more IRQ calls after this line, even NMI is blocked.
+	;
 	Cli
-	Call	disablePic
 	Call	disableNMI
-
+	Call	disablePic
+	;
 	LGdt	[GDT32.pointer]
-
+	;
 	Mov	eax, cr0
 	Or	eax, 1
 	Mov	cr0, eax
-
+	;
 	Jmp	GDT32.code:protectedMode
-
+	;
 enableSSE	Mov	eax, cr0
 	And	ax, 0xFFFB	;clear coprocessor emulation CR0.EM
 	Or	ax, 0x2	;set coprocessor monitoring  CR0.MP
@@ -105,15 +143,11 @@ enableSSE	Mov	eax, cr0
 
 ; ==[ playwithVesa ]====================================================================[ 16bit ]==
 ;
-setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurable in a nicer way
-	Mov word	[.height], 720
-	Mov byte	[.bpp], 32
-
-	Mov	ax, 0x4f00
-	Mov	di, vesaInfo
+setVesamode	Mov	ax, 0x4f00
+	Lea	di, [vesaInfo]
 	int	0x10
 
-; we have VESA v3.0
+; We VESA v3.0 found haz0rz
 
 	Mov	ax, [vesaInfo + vbeInfo.modeListPointer]
 	Mov	[.offset], ax
@@ -132,39 +166,49 @@ setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurabl
 	Cmp word	[.mode], 0xffff	; end of list
 	Je	.error
 
-	Mov	ax, 0x4f01	; get VBE mode info
+	Mov	ax, 0x4f01	; getVBEModeInfo
 	Mov	cx, [.mode]
-	Mov	di, vesaMode
+	Lea	di, [vesaMode]
 	Int	0x10
 
 	Cmp	ax, 0x4f
 	Jne	.error
 
-	Mov	ax, [.width]
+	Mov	ax, ScreenWidth
 	Cmp	ax, [vesaMode + vbeMode.width]
 	Jne	.nextMode
 
-	Mov	ax, [.height]
+	Mov	ax, ScreenHeight
 	Cmp	ax, [vesaMode + vbeMode.height]
 	Jne	.nextMode
 
-	Mov	al, [.bpp]
+	Mov	al, ScreenBitsPerPixel
 	Cmp	al, [vesaMode + vbeMode.bpp]
 	Jne	.nextMode
 
-	Bt word	[vesaMode + vbeMode.attributes], 7
+	Bt word	[vesaMode + vbeMode.attributes], 7	; Check if it supports LFB.
 	Jnc	.nextMode
-; we haz an screenmodez
-
+	;
+	; We've got a mode that we're happy about, now set it..
+	;
 	Mov	ax, 0x4f02
 	Mov	bx, [.mode]
-	Or	bx, 0x4000	; enable Linear FrameBuffer
+	Or	bx, 0x4000	; enable Linear FrameBuffer (Bit 14)
 	Mov	di, 0
 	Int	0x10
 
 	Cmp	ax, 0x4f
 	Jne	.error
 
+	; Save data for LM
+	;
+	Mov	eax, [vesaMode + vbeMode.physicalBase]
+	Mov dword	[loaderInfo + loaderInformation.vesaPhysBasePtr], eax
+	Mov word	ax, [vesaMode + vbeMode.linearBytesPerRow]
+	Mov word	[loaderInfo + loaderInformation.vesaBytesPerRow], ax
+	Mov word	[loaderInfo + loaderInformation.vesaPixelWidth], ScreenWidth
+	Mov word	[loaderInfo + loaderInformation.vesaPixelHeight], ScreenHeight
+	Mov byte	[loaderInfo + loaderInformation.vesaPixelDepth], ScreenBitsPerPixel
 
 	Clc
 	Ret
@@ -177,12 +221,9 @@ setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurabl
 .error	Stc
 	ret
 
-.width	Dw	0
-.height	Dw	0
 .segment	Dw	0
 .offset	Dw	0
 .mode	Dw	0
-.bpp	Db	0
 
 
 ; ==[ disablePic ]======================================================================[ 16bit ]==
@@ -277,13 +318,13 @@ printString	PushAD
 ;
 loadKernel	PushAD
 	Push	es
-	Mov	ax, KernelOffset>>4	; This will be a temporary offset where we just load the kernel, then move it to end of memory.
+	Mov	ax, KernelOffset>>4 ; This will be a temporary offset where we just load the kernel, we'll then move it to end of memory somewhere to be forgotten..
 	Mov	es, ax
 	XOr	bx, bx	; Buffer offset
 	Mov	ah, 2	; Read sector
-	Mov	al, 20	; No. sectors
+	Mov	al, 20	; Number of sectors - TODO(peter): We have to fix this to the actual length
 	Mov	ch, 0	; Low eight bits cylinder
-	Mov	cl, 18	; Sector no. 1-63 (bits 6-7 hd only)
+	Mov	cl, 18	; Sector number 1-63 (bits 6-7 hd only)
 	Mov	dh, 0	; Head
 	Mov	dl, 0	; Drive
 	Int	0x13
@@ -301,14 +342,14 @@ resetFloppy	Mov	ah, 0
 ;
 ; Requests memory areas from the BIOS, adds structures to memory offset 0x1000 and forwards
 ;
-getMemorymap	XOr	ebx, ebx
-	Mov	eax, 0xe820	; Request memory areas
-	Mov	ecx, 24	; Size of request, always request 24 bytes
+getMemorymap	Mov	eax, 0xe820	; Request memory areas
+	XOr	ebx, ebx
+	Mov	ecx, 24	; Size of request, always request 24 bytes even if we most problably never will see that number return
 	Mov	edx, "PAMS"	; SMAP in little endian
 	Lea	di, [0x1000]	; Buffer to fill with data
 	Int	0x15
 
-	Jc	.failed	; Fail if BIOS-call has set the carry flag
+	Jc	.failed	; BIOS calls most often sets carry on failure...
 
 	Cmp	eax, "PAMS"	; Fail if eax does not contain PAMS after BIOS-call
 	Jnz	.failed	;
@@ -319,8 +360,12 @@ getMemorymap	XOr	ebx, ebx
 	Lea	si, [e820valid]
 	Call	printString
 
-.nextEntry	Jcxz	.skipEntry	; Skip if zero length (perhaps should check if less than 20 bytes)
+	mov byte	[loaderInfo + loaderInformation.memInfoCount], 1
+	mov dword	[loaderInfo + loaderInformation.memInfoPtr], 0x1000 
+
+.nextEntry	Jcxz	.skipEntry	; Skip if zero length (perhaps should check if less than 20 bytes as well)
 	Lea	di, [di + 24]	; Change bufferpointer for next request
+	Inc byte	[loaderInfo + loaderInformation.memInfoCount]
 
 .skipEntry	Mov	eax, 0xe820
 	Mov	ecx, 24	; Always request 24 bytes, even if we only get 20 back.
@@ -369,6 +414,7 @@ protectedMode	Cli
 	; Now we are in compatibility mode, one more thing before entering real 64bit mode
 	Lgdt	[GDT64.pointer]	; temporary 64bit GDT to get the kernel running, more of this in C layer
 
+	Lea	edi, [loaderInfo]
 	Jmp	GDT64.code:KernelOffset	; long jump to x64 from here.
 
 	Cli	; if we were to ever get back
@@ -377,37 +423,19 @@ protectedMode	Cli
 
 ; ==[ setupPaging ]=====================================================================[ 32bit ]==
 ;
-%define	PML4T	0x2000	; 512Gb per entry
-%define	PDPT	0x3000	;   1Gb per entry
-%define	PDT	0x4000	;   2Mb per entry
-%define	PDT2	0x12000	;   2Mb per entry
-%define	PT	0x5000	;   4Kb per entry
-%define	PT_FD000000	0x6000
-%define	PT_FD200000	0x13000
-
 setupPaging	Mov	eax, cr0	; Disable paging
 	And	eax, 0x7fffffff
 	Mov	cr0, eax
 
-	Mov	edi, 0x2000
+	;
+	; HACK(peter): Clearing page memory, should be dynamic and moved to a 'set page' or something
+	;
+
+	Mov	edi, PML4T
 	XOr	eax, eax
-	Mov	ecx, 6 * 1024
+	Mov	ecx, pgTableCount * 1024
 	Rep Stosd
-
-	Mov	edi, 0x12000
-	XOr	eax, eax
-	Mov	ecx, 6 * 1024
-	Rep Stosd
-
-
-; fd000000
-
-; 11 111101000 000000000 000000000000
-; PML4= 0
-; pdpt= 488th
-; pdt = 0th
-; pt  = 512 pages @ 0x7000
-
+	;
 
 	Mov	edi, PML4T
 	Mov dword	[edi], PDPT | 3
@@ -423,80 +451,87 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Mov dword	[edi + 488 * 8], PT_FD000000 | 3
 	Mov dword	[edi + 489 * 8], PT_FD200000 | 3
 
-	Mov	edi, PT
-	Mov	ebx, 3	; R/W + Present
+	; TODO(peter): Should make an initializer list for these, that we create dynamically after setting up screenmode and other stuff.
+
+	Mov	edi, PT		; 0x00000000 -> 0x00200000 (2MB)
+	Mov	ebx, 0x00000003	; R/W + Present
 	Mov	ecx, 512
 .setEntry	Mov	[edi], ebx
 	Add	ebx, 0x1000
 	Add	edi, 8
 	loop	.setEntry
 
-	Mov	edi, PT_FD000000
-	Mov	ebx, 0xfd000003	; R/W + Present
+	Mov	edi, PT_FD000000	; 0xfd000000 -> 0xfd200000 (2MB)
+	Mov	ebx, 0xfd000003
 	Mov	ecx, 512
 .setEntry2	Mov	[edi], ebx
 	Add	ebx, 0x1000
 	Add	edi, 8
 	loop	.setEntry2
 
-	Mov	edi, PT_FD200000
-	Mov	ebx, 0xfd200003	; R/W + Present
+	Mov	edi, PT_FD200000	; 0xfd200000 -> 0xfd400000 (2MB)
+	Mov	ebx, 0xfd200003
 	Mov	ecx, 512
 .setEntry3	Mov	[edi], ebx
 	Add	ebx, 0x1000
 	Add	edi, 8
 	loop	.setEntry3
 
-	Mov	edi, 0x2000	; startup paging
+	Mov	edi, PML4T	; startup paging
 	Mov	cr3, edi
 	Ret
 
 ; =======================================[ the blitter end ]=======================================
 
-	[Section	.data]
+
 ; =================================================================================================
 
-e820done	Db	"[BIOS] - E820 parsed..", 0xa, 0
-e820failed	Db	"[BIOS] - E820 parsing failed..", 0xa, 0
-e820valid	Db	"[BIOS] - E820 valid..", 0xa, 0
-Greetings	Db	"Loading kernel..", 0xa, 0
+	[Section	.data]
 
 GDT32:
-.null	equ	$ - GDT32	; null descriptor
+.null	equ	$ - GDT32		; null descriptor
 	Dd	0, 0
-.code	equ	$ - GDT32	; Code descriptor
+.code	equ	$ - GDT32		; Code descriptor
  	Dw	0xffff, 0
 	Db	0, 10011010b, 11001111b, 0
-.data	equ	$ - GDT32	; Data descriptor
+.data	equ	$ - GDT32		; Data descriptor
  	Dw	0xffff, 0
 	Db	0, 10010010b, 11001111b, 0
 .pointer	Dw	$ - GDT32 - 1
 	Dd	GDT32
 
-
 GDT64:
-.null	equ	$ - GDT64	; null descriptor
+.null	equ	$ - GDT64		; null descriptor
 	Dd	0, 0
-.code	equ	$ - GDT64	; code descriptor
+.code	equ	$ - GDT64		; code descriptor
 	Dw	0, 0
 	Db	0, 10011010b, 00100000b, 0
-.data	equ	$ - GDT64	; data descriptor
+.data	equ	$ - GDT64		; data descriptor
 	Dw	0, 0
 	Db	0, 10010010b, 00000000b, 0
-.pointer	Dw	$ - GDT64 - 1	; GDT-Pointer
+.pointer	Dw	$ - GDT64 - 1		; GDT-Pointer
 	Dq	GDT64
 
-	[Section	.bss]
-; ==[ misc screen related ]========================================================================
+; ==[ Screen related ]=============================================================================
 ;
-cursorY	ResW	1
-cursorX	ResW	1
-
-; ==[ e820 memory related ]========================================================================
-;
-e820Data	ResD	1	; Contains pointer to e820 datastorage
+cursorY	Dw	0
+cursorX	Dw	0
 
 ; ==[ VESA related ]===============================================================================
 ;
-vesaInfo	ResB	vbeInfo.size
-vesaMode	ResB	vbeMode.size
+	align 4
+vesaInfo	times vbeInfo.size	db 0
+	align 4
+vesaMode	times vbeMode.size	db 0
+
+; ==[ Loader related ]=============================================================================
+;
+	align 4
+loaderInfo	times loaderInformation.size	db 0
+
+; ==[ Strings ]====================================================================================
+;
+e820done	Db	"[BIOS] - E820 parsed..", 0xa, 0
+e820failed	Db	"[BIOS] - E820 parsing failed..", 0xa, 0
+e820valid	Db	"[BIOS] - E820 valid..", 0xa, 0
+
