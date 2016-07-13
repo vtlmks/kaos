@@ -72,16 +72,11 @@ Start	Cld
 
 	Sti
 
-	Call	setVesamode
-
-	; --
-	Call	clearScreen
-
-	Lea	si, [Greetings]
-	Call	printString
-
 	Call	enableA20
+	Call	enableSSE
 	Call	getMemorymap
+
+	Call	setVesamode
 
 	; load kernel code
 	Call	resetFloppy
@@ -97,6 +92,15 @@ Start	Cld
 	Mov	cr0, eax
 
 	Jmp	GDT32.code:protectedMode
+
+enableSSE	Mov	eax, cr0
+	And	ax, 0xFFFB	;clear coprocessor emulation CR0.EM
+	Or	ax, 0x2	;set coprocessor monitoring  CR0.MP
+	Mov	cr0, eax
+	Mov	eax, cr4
+	Or	ax, 3 << 9	;set CR4.OSFXSR and CR4.OSXMMEXCPT at the same time
+	Mov	cr4, eax
+	Ret
 
 ; ==[ playwithVesa ]====================================================================[ 16bit ]==
 ;
