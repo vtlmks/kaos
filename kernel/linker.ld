@@ -26,7 +26,7 @@ SECTIONS
 ENTRY("kernelmain")
 SECTIONS
 {
-	. = 0xFFFFFFFF;
+	. = 0x10000;
 	.text : { *(.text) }
 	.data : { *(.data) } 
 }

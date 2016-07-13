@@ -56,7 +56,7 @@ Start	Cld
 	Mov	esp, 0xfff0
 
 ;	Call	disablePic
-;	Call	disableNMI
+	Call	disableNMI
 	Sti
 
 ;	Call	playwithVesa

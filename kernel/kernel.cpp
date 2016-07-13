@@ -25,7 +25,7 @@ void apicInit();
 void kernelmain() {
 
 	//(".intel_syntax noprefix");
-	//asm("mov	$deadbeef,%rax;"
+	asm("mov	$0xdeadbeef,%rax;");
 	asm("jmp	.;"
 		"cli;"
 		"mov	%ax,0x10;"
