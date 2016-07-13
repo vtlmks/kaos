@@ -72,7 +72,7 @@ Start	Cld
 
 	Sti
 
-;	Call	setVesamode
+	Call	setVesamode
 
 	; --
 	Call	clearScreen
@@ -135,10 +135,6 @@ setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurabl
 	Cmp	ax, 0x4f
 	Jne	.error
 
-	Mov	al, [.bpp]
-	Cmp	al, [vesaMode + vbeMode.bpp]
-	Jne	.nextMode
-
 	Mov	ax, [.width]
 	Cmp	ax, [vesaMode + vbeMode.width]
 	Jne	.nextMode
@@ -147,7 +143,12 @@ setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurabl
 	Cmp	ax, [vesaMode + vbeMode.height]
 	Jne	.nextMode
 
-; we haz screenmodez
+	Mov	al, [.bpp]
+	Cmp	al, [vesaMode + vbeMode.bpp]
+	Jne	.nextMode
+
+
+; we haz an screenmodez
 
 	Mov	ax, 0x4f02
 	Mov	bx, [.mode]
@@ -374,7 +375,10 @@ protectedMode	Cli
 %define	PML4T	0x2000	; 512Gb per entry
 %define	PDPT	0x3000	;   1Gb per entry
 %define	PDT	0x4000	;   2Mb per entry
+%define	PDT2	0x12000	;   2Mb per entry
 %define	PT	0x5000	;   4Kb per entry
+%define	PT_FD000000	0x6000
+%define	PT_FD200000	0x13000
 
 setupPaging	Mov	eax, cr0	; Disable paging
 	And	eax, 0x7fffffff
@@ -385,20 +389,52 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Mov	ecx, 4096
 	Rep Stosd
 
-	Mov	edi, 0x2000
-	Mov dword	[edi], 0x3003
-	Add	edi, 0x1000
-	Mov dword	[edi], 0x4003
-	Add	edi, 0x1000
-	Mov dword	[edi], 0x5003
-	Add	edi, 0x1000
+; fd000000
 
+; 11 111101000 000000000 000000000000
+; PML4= 0
+; pdpt= 488th
+; pdt = 0th
+; pt  = 512 pages @ 0x7000
+
+
+	Mov	edi, PML4T
+	Mov dword	[edi], PDPT | 3
+
+	Mov	edi, PDPT
+	Mov dword	[edi], PDT | 3
+	Mov dword	[edi + 3 * 8], PDT2 | 3
+
+	Mov	edi, PDT
+	Mov dword	[edi], PT | 3
+
+	Mov	edi, PDT2
+	Mov dword	[edi + 488 * 8], PT_FD000000 | 3
+	Mov dword	[edi + 489 * 8], PT_FD200000 | 3
+
+	Mov	edi, PT
 	Mov	ebx, 3	; R/W + Present
 	Mov	ecx, 512
 .setEntry	Mov	[edi], ebx
 	Add	ebx, 0x1000
 	Add	edi, 8
 	loop	.setEntry
+
+	Mov	edi, PT_FD000000
+	Mov	ebx, 0xfd000003	; R/W + Present
+	Mov	ecx, 512
+.setEntry2	Mov	[edi], ebx
+	Add	ebx, 0x1000
+	Add	edi, 8
+	loop	.setEntry2
+
+	Mov	edi, PT_FD200000
+	Mov	ebx, 0xfd200003	; R/W + Present
+	Mov	ecx, 512
+.setEntry3	Mov	[edi], ebx
+	Add	ebx, 0x1000
+	Add	edi, 8
+	loop	.setEntry3
 
 	Mov	edi, 0x2000	; startup paging
 	Mov	cr3, edi

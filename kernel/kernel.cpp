@@ -8,6 +8,7 @@
 
 #include "include\assembler.h"
 #include "include\types.h"
+#include "tty.h"
 //#include <intrin.h>
 
 
@@ -26,34 +27,25 @@ void kernelmain() {
 
 	//(".intel_syntax noprefix");
 	asm("mov	$0xdeadbeef,%rax;");
-	asm("jmp	.;"
-		"cli;"
-		"mov	%ax,0x10;"
-		"mov	%ax,%ds;"
-		"mov	%ax,%es;"
-		"mov	%ax,%fs;"
-		"mov	%ax,%gs;"
-		"mov	%ax,%ss;"
-		"mov	$80000,%esp;"
-		"mov	%esp,%ebp;"
-		//"push	%ebp;"
-		"sti;"
-	);
+	ttyInit();
+	asm("jmp .;");
+//		"cli;"
+//		"mov	%ax,0x10;"
+//		"mov	%ax,%ds;"
+//		"mov	%ax,%es;"
+//		"mov	%ax,%fs;"
+//		"mov	%ax,%gs;"
+//		"mov	%ax,%ss;"
+//		"mov	$80000,%esp;"
+//		"mov	%esp,%ebp;"
+//		//"push	%ebp;"
+//		"sti;"
+//	);
 
 	apicInit();
 
 	//asm("jmp $");
 
-	char *a = (char *) loaderWelcome;
-
-
-	volatile int b = 0;
-
-	for(unsigned int i = 0; i < 10; ++i) {
-		a[i] == 0 ? b = 1 : b = 0;
-	}
-
-	if(b) a[2] = 0;
 }
 
 #define IA32_APIC_BASE_MSR 0x1B
