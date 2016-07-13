@@ -83,8 +83,9 @@ Start	Cld
 	Call	loadKernel
 
 	Cli
-;	Call	disablePic
-;	Call	disableNMI
+	Call	disablePic
+	Call	disableNMI
+
 	LGdt	[GDT32.pointer]
 
 	Mov	eax, cr0

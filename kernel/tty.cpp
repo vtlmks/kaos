@@ -7,23 +7,15 @@
 #include "psf.h"
 
 
-#define	 defaultFrontColor	0xfff0a438
-#define	 defaultBackColor		0xff0c1420
+#define	defaultFrontColor	0xfff0a438
+#define	defaultBackColor	0xff0c1420
 
-struct vec2 {
-	uint8_t	x;
-	uint8_t	y;
+struct memInfo {
+	u64 from;
+	u64 length;
+	u32 flag;
+	u32 pad;
 };
-
-vec2		cursor;
-
-u16	charColor = {0x0e};
-u32	backColor;
-u32	frontColor;
-
-PSF2	*psf;
-u8		*font;
-u32	*frameBuffer;
 
 struct position {
 	u8	x;
@@ -35,6 +27,16 @@ struct tty {
 	u8	height;
 	position	cursor;
 };
+
+position	cursor;
+
+u16	charColor = {0x0e};
+u32	backColor;
+u32	frontColor;
+
+PSF2	*psf;
+u8		*font;
+u32	*frameBuffer;
 
 tty	defaultTTY	= {};
 
@@ -232,11 +234,11 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
+void writeString(const char *stringBuffer, position *cur = &cursor) {
 	u16 fontRowData = 0;
 	while(u8 character = *stringBuffer++) {
 		if(character == '\n') {
-			cur->y++;
+			++cur->y;
 			cur->x = 0;
 		} else {
 			for(u32 row = 0; row < psf->height; ++row) {
@@ -250,103 +252,35 @@ void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
 					continue;
 				}
 			}
-			cur->x++;
+			++cur->x;
 		}
 	}
 }
 
 
-void writeString(const char *stringBuffer, uint32_t color) {
+void writeString(const char *stringBuffer, u32 color) {
 	frontColor = color;
 	writeString(stringBuffer, &cursor);
 }
 
-void writeHex(uint32_t value) {
-	static const char hexChars[] = "0123456789ABCDEF";
-	char temp[9];
-	for(u32 i = 0, j = (8 - 1) * 4; i<8; ++i, j -= 4) {
-		temp[i] = hexChars[(value >> j) & 0xf];
-	}
-	temp[8] = 0;
-	writeString(temp);
-}
-
-void writeHex(uint32_t value, uint32_t color) {
-	frontColor = color;
-	writeHex(value);
-}
-
-/*
-** dumpMemory(pointer, length, type)
-**
-** pointer	- raw linear pointer to where we should start reading information to write to console
-** length	- how much of it should we write?
-** type		- b,w,d,q,128bit,256bit,512bit...257PB
-*/
-
-enum class Type {
-	BYTE = 0,
-	WORD,
-	LONG,
-	QUAD
-};
-
-// TODO(peter): Change type to an enum.
-void dumpMemory(u32 *pointer, u8 length, Type type = Type::LONG) {
-
-	switch(type) {
-		case Type::BYTE: {
-		} break;
-
-		case Type::WORD: {
-		} break;
-
-		case Type::LONG: {
-			//			writeHex((uint32_t)pointer);
-			writeString(": ");
-			for(u8 i = 0; i < length; i += 4) {
-				//				writeHex((uint32_t)pointer[i]);
-				//				pointer += 4;
-				writeString(" ");
-			}
-			writeString((char *)pointer);
-		} break;
-
-		case Type::QUAD: {
-		} break;
-	}
-}
-
-
-struct memInfo {
-	u64 from;
-	u64 length;
-	u32 flag;
-	u32 pad;
-};
-
 void ttyInit() {
-	frameBuffer	= (u32*)0xfd000000;	//(size_t *)modeInfo->PhysBasePtr;
+	char buffer[200];
+
+	cursor		= {0, 0};
 	psf			= (PSF2 *)&fontLat2Terminus16;
-	font			= (uint8_t *)(psf)+ psf->headerSize;
-
-	cursor = {0, 0};
-
+	font			= (u8 *)(psf) + psf->headerSize;
+	frameBuffer	= (u32*)0xfd000000;	// TODO: Fix this.
 	backColor	= defaultBackColor;
 	frontColor	= defaultFrontColor;
+
+	memInfo *e820Mem	= (memInfo *)0x1000;
 
 	for(u32 i = 0; i < 1280 * 720; ++i) {	// clear screen
 		frameBuffer[i] = defaultBackColor;
 	}
 
-	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
-	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
-	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
-	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
+	writeString("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
 
-	memInfo	*e820Mem = (memInfo *)0x1000;
-
-	char buffer[200];
 	sprintf(buffer, "\nMemlist\n~~~~~~~\n");
 	writeString(buffer);
 
