@@ -16,10 +16,8 @@
 KernelOffset	Equ	0x10000	; Where to load the kernel
 
 
-; memorylayout
+; Memorylayout
 ;
-; 0x00000 -> 0x0ffff
-; ~~~~~~~~~~~~~~~~
 ; 0x00000 -> 0x00fff - Bios stuff
 ; 0x01000 -> 0x01fff - Memory list from bios 0x8e20 function (128 entries from e820, space for 170 entries if we do it in EFI)
 ; 0x02000 -> 0x02fff - Temporary storage for vesa-data
@@ -35,11 +33,28 @@ KernelOffset	Equ	0x10000	; Where to load the kernel
 ; 0x60000 -> 0x6ffff
 ; 0x70000 -> 0x7ffff
 ; 0x80000 -> 0x8ffff - Space for temporary pagetables
-; 0x90000 -> 0x9fc00 - Check where the BEDA starts, pointer sholud be found at 0x040e (segment pointer, so multiply with 0x10) or something like that
+; 0x90000 -> 0x9fc00 - Check where the EBDA starts, pointer sholud be found at 0x040e (segment pointer, so multiply with 0x10) or something like that
 ; 0xa0000 -> 0xbffff - VGA display memory
 ; 0xc0000 -> 0xc7fff - [ROM] Video BIOS
 ; 0xc8000 -> 0xeffff - [ROM & RAM] Mapped hardware & misc?
 ; 0xf0000 -> 0xfffff - [ROM] Motherboard BIOS
+;
+; 0x0000000000000000 - 0x00007fffffffffff (=47 bits) user space, different per mm
+;
+; hole caused by [48:63] sign extension
+;
+; 0xffff800000000000 - 0xffffBfffffffffff (=64 TB  ) direct mapping of all phys. memory
+; ... hole ...
+; 0xffffc90000000000 - 0xffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+; ... hole ...
+; 0xffffea0000000000 - 0xffffeaffffffffff (=40 bits) virtual memory map (1TB)
+; ... hole ...
+; 0xffffffff80000000 - 0xffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
+; 0xffffffffa0000000 - 0xffffffffff5fffff (=1526 MB) module mapping space
+; 0xffffffffff600000 - 0xffffffffffdfffff (=8 MB) vsyscalls
+; 0xffffffffffe00000 - 0xffffffffffffffff (=2 MB) unused hole
+
+
 
 ; ==[ kernelLoader ]====================================================================[ 16bit ]==
 ;
@@ -55,11 +70,9 @@ Start	Cld
 	Mov	ss, ax
 	Mov	esp, 0xfff0
 
-;	Call	disablePic
-	Call	disableNMI
 	Sti
 
-;	Call	playwithVesa
+;	Call	setVesamode
 
 	; --
 	Call	clearScreen
@@ -75,6 +88,8 @@ Start	Cld
 	Call	loadKernel
 
 	Cli
+;	Call	disablePic
+;	Call	disableNMI
 	LGdt	[GDT32.pointer]
 
 	Mov	eax, cr0
@@ -85,7 +100,7 @@ Start	Cld
 
 ; ==[ playwithVesa ]====================================================================[ 16bit ]==
 ;
-playwithVesa	Mov word	[.width], 1280
+setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurable in a nicer way
 	Mov word	[.height], 720
 	Mov byte	[.bpp], 32
 
@@ -136,7 +151,7 @@ playwithVesa	Mov word	[.width], 1280
 
 	Mov	ax, 0x4f02
 	Mov	bx, [.mode]
-	Or	bx, 0x4000	; enable LFB
+	Or	bx, 0x4000	; enable Linear FrameBuffer
 	Mov	di, 0
 	Int	0x10
 
@@ -144,7 +159,6 @@ playwithVesa	Mov word	[.width], 1280
 	Jne	.error
 
 	Mov	eax, [vesaMode + vbeMode.physicalBase]
-	Jmp	$
 
 	Clc
 	Ret
