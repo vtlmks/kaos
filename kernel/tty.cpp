@@ -249,8 +249,8 @@ void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
 				} else {
 					continue;
 				}
-			};
-			++cur->x;
+			}
+			cur->x++;
 		}
 	}
 }
@@ -318,6 +318,12 @@ void dumpMemory(u32 *pointer, u8 length, Type type = Type::LONG) {
 }
 
 
+struct memInfo {
+	u64 from;
+	u64 length;
+	u32 flag;
+	u32 pad;
+};
 
 void ttyInit() {
 	frameBuffer	= (u32*)0xfd000000;	//(size_t *)modeInfo->PhysBasePtr;
@@ -329,27 +335,23 @@ void ttyInit() {
 	backColor	= defaultBackColor;
 	frontColor	= defaultFrontColor;
 
-	for(u32 i = 0; i < 1280 * 224; ++i) {	// clear screen
+	for(u32 i = 0; i < 1280 * 720; ++i) {	// clear screen
 		frameBuffer[i] = defaultBackColor;
 	}
 
-	writeString("\nKAOS v0.0.0 - Created by Mindkiller Systems.\n");
-
-struct memInfo {
-	u64 from;
-	u64 length;
-	u32 flag;
-	u32 pad;
-};
+	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
+	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
+	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
+	writeString("KAOS v0.0.0 - Created by Mindkiller Systems.\n");
 
 	memInfo	*e820Mem = (memInfo *)0x1000;
 
 	char buffer[200];
-	sprintf(buffer, "Memlist\n");
+	sprintf(buffer, "\nMemlist\n~~~~~~~\n");
 	writeString(buffer);
 
 	for(u8 i = 0; i < 6; ++i) {
-		sprintf(buffer, "from: %16x   size: %16x type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
+		sprintf(buffer, " From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
 		writeString(buffer);
 	}
 

@@ -11,14 +11,6 @@
 #include "tty.h"
 //#include <intrin.h>
 
-
-char const *loaderWelcome = "Second stage loader started";
-char const *loaderInitializing = " [  ] Initializing memory, setting up structures";
-char const *loaderMemoryprobe = " [  ] Trying to find out how much memory this machine have available";
-char const *loaderSwitchingvideomode = " [  ] Switching to something better than 80x25";
-char const *loaderMessage = " [  ] Loading kernel";
-char const *loaderOK = " [OK]";
-
 extern "C" void kernelmain();
 
 void apicInit();

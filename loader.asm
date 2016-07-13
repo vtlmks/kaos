@@ -386,8 +386,14 @@ setupPaging	Mov	eax, cr0	; Disable paging
 
 	Mov	edi, 0x2000
 	XOr	eax, eax
-	Mov	ecx, 4096
+	Mov	ecx, 6 * 1024
 	Rep Stosd
+
+	Mov	edi, 0x12000
+	XOr	eax, eax
+	Mov	ecx, 6 * 1024
+	Rep Stosd
+
 
 ; fd000000
 
