@@ -59,15 +59,15 @@
 .blueMaskPos	ResB	1	; blue_field_Pos
 .reservedMaskSize	ResB	1	; reserved_mask_size
 .reservedMaskPos	ResB	1	; reserved_field_Pos
-.directColorModeInfo	ResB	1	; direct_color_mode_info
+.directColorModeInfo ResB	1	; direct_color_mode_info
 ; -- VBE 2.0 and above
 .physicalBase	ResD	1	; physical_base
 .reserved1	ResD	1	; _reserved1
 .reserved2	ResW	1	; _reserved2
 ; -- VBE 3.0 and above
 .linearBytesPerRow	ResW	1	; linear_bytes_per_row
-.bankedNumImagePages	ResB	1	; banked_num_image_pages
-.linearNumImagePages	ResB	1	; linear_num_image_pages
+.bankedNumImagePages ResB	1	; banked_num_image_pages
+.linearNumImagePages ResB	1	; linear_num_image_pages
 ;
 .linRedMaskSize	ResB	1	; linear_red_mask_size
 .linRedMaskPos	ResB	1	; linear_red_field_Pos
@@ -75,7 +75,7 @@
 .linGreenMaskPos	ResB	1	; linear_green_field_Pos
 .linBlueMaskSize	ResB	1	; linear_blue_mask_size
 .linBlueMaskPos	ResB	1	; linear_blue_field_Pos
-.linReservedMaskSize	ResB	1	; linear_reserved_mask_size
+.linReservedMaskSize ResB	1	; linear_reserved_mask_size
 .linReservedMaskPos	ResB	1	; linear_reserved_field_Pos
 
 .maxPixelClock	ResD	1	; max_pixel_clock in Hz

@@ -147,7 +147,8 @@ setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurabl
 	Cmp	al, [vesaMode + vbeMode.bpp]
 	Jne	.nextMode
 
-
+	Bt word	[vesaMode + vbeMode.attributes], 7
+	Jnc	.nextMode
 ; we haz an screenmodez
 
 	Mov	ax, 0x4f02
@@ -159,7 +160,6 @@ setVesamode	Mov word	[.width], 1280	; TODO(peter): Change this to be configurabl
 	Cmp	ax, 0x4f
 	Jne	.error
 
-	Mov	eax, [vesaMode + vbeMode.physicalBase]
 
 	Clc
 	Ret

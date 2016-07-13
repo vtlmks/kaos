@@ -321,15 +321,15 @@ void dumpMemory(u32 *pointer, u8 length, Type type = Type::LONG) {
 
 void ttyInit() {
 	frameBuffer	= (u32*)0xfd000000;	//(size_t *)modeInfo->PhysBasePtr;
-	psf			=(PSF2 *)&fontLat2Terminus16;
-	font			=(uint8_t *)(psf)+ psf->headerSize;
+	psf			= (PSF2 *)&fontLat2Terminus16;
+	font			= (uint8_t *)(psf)+ psf->headerSize;
 
 	cursor = {0, 0};
 
 	backColor	= defaultBackColor;
 	frontColor	= defaultFrontColor;
 
-	for(u32 i = 0; i < 1280 * 220; ++i) {	// clear screen
+	for(u32 i = 0; i < 1280 * 224; ++i) {	// clear screen
 		frameBuffer[i] = defaultBackColor;
 	}
 
