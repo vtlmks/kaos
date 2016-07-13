@@ -11,34 +11,32 @@
 #define	defaultBackColor	0xff0c1420
 
 struct memInfo {
-	u64 from;
-	u64 length;
-	u32 flag;
-	u32 pad;
+	u64	from;
+	u64	length;
+	u32	flag;
+	u32	pad;
 };
 
-struct position {
+struct vec2 {
 	u8	x;
 	u8	y;
 };
 
 struct tty {
-	u8	width;
-	u8	height;
-	position	cursor;
+	u8		width;
+	u8		height;
+	vec2	cursor;
 };
 
-position	cursor;
-
-u16	charColor = {0x0e};
 u32	backColor;
+vec2	cursor;
+u16	charColor;
+tty	defaultTTY;
 u32	frontColor;
 
 PSF2	*psf;
 u8		*font;
 u32	*frameBuffer;
-
-tty	defaultTTY	= {};
 
 void putchar(int c) {
 	if(c == '\n') {
@@ -66,11 +64,11 @@ static void printchar(char **str, int c) {
 #define PAD_ZERO	2
 
 static int prints(char **out, const char *string, int width, int pad) {
-	register int pc = 0, padchar = ' ';
+	int pc = 0, padchar = ' ';
 
 	if(width > 0) {
-		register int len = 0;
-		register const char *ptr;
+		int len = 0;
+		const char *ptr;
 		for(ptr = string; *ptr; ++ptr) {
 			++len;
 		}
@@ -151,8 +149,8 @@ static int printInteger(char **out, s64 i, int b, int sg, int width, int pad, in
 }
 
 static int print(char **out, const char *format, va_list args) {
-	register int width, pad;
-	register int pc = 0;
+	int width, pad;
+	int pc = 0;
 	char scr[2];
 
 	for(; *format != 0; ++format) {
@@ -174,7 +172,7 @@ static int print(char **out, const char *format, va_list args) {
 				width += *format - '0';
 			}
 			if(*format == 's') {
-				register char *s =(char *)va_arg(args, int);
+				char *s =(char *)va_arg(args, int);
 				pc += prints(out, s ? s : "(null)", width, pad);
 				continue;
 			}
@@ -222,7 +220,6 @@ int sprintf(char *out, const char *format, ...) {
 	return print(&out, format, args);
 }
 
-
 /*
  * Check null terminated string length
  */
@@ -234,7 +231,7 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-void writeString(const char *stringBuffer, position *cur = &cursor) {
+void writeString(const char *stringBuffer, vec2 *cur = &cursor) {
 	u16 fontRowData = 0;
 	while(u8 character = *stringBuffer++) {
 		if(character == '\n') {
@@ -288,6 +285,5 @@ void ttyInit() {
 		sprintf(buffer, " From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
 		writeString(buffer);
 	}
-
 }
 
