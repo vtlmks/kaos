@@ -29,18 +29,18 @@
 ;
 ; Memory layout - Userspace
 ;
-; 0x0000000000000000 - 0x00007fffffffffff (=47 bits) user space, different per mm
+; 0x0000000000100000 - 0x00007fffffffffff (=47 bits) user space, different per mm
 ;
 ; Memory layout - Kernelspace
 ;
-; hole caused by [48:63] sign extension
+; Hole caused by [48:63] sign extension
 ;
 ; 0xffff800000000000 - 0xffffBfffffffffff (=64 TB  ) direct mapping of all phys. memory
-; ... hole ...
+; ... Hole ...
 ; 0xffffc90000000000 - 0xffffe8ffffffffff (=45 bits) vmalloc/ioremap space
-; ... hole ...
+; ... Hole ...
 ; 0xffffea0000000000 - 0xffffeaffffffffff (=40 bits) virtual memory map (1TB)
-; ... hole ...
+; ... Hole ...
 ; 0xffffffff80000000 - 0xffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
 ; 0xffffffffa0000000 - 0xffffffffff5fffff (=1526 MB) module mapping space
 ; 0xffffffffff600000 - 0xffffffffffdfffff (=8 MB) vsyscalls
