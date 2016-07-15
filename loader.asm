@@ -67,6 +67,12 @@ PT_FD000000	equ	0x95000
 PT_FD200000	equ	0x96000
 pgTableCount	equ	7
 
+EFER:
+.LME	equ	8
+
+ConR4:
+.PAE	equ	5
+
 ; A pointer to this structure should be supplied to the 64bit kernel in a register.
 ;
 	struc	loaderInformation
@@ -401,11 +407,11 @@ protectedMode	Cli
 	Call	setupPaging
 
 	Mov	eax, cr4
-	Or	eax, 1 << 5	; enable PAE
+	Or	eax, 1 << ConR4.PAE	; enable PAE
 	mov	cr4, eax
 	Mov	ecx, 0xc0000080	; EFER msr
 	Rdmsr
-	Or	eax, 1 << 8	; LM-bit
+	Or	eax, 1 << EFER.LME	; LM-bit
 	Wrmsr
 	Mov	eax, cr0
 	Or	eax, 1 << 31 | 1 << 0 ; PG (Paging) + PM (Protected Mode)

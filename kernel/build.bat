@@ -1,7 +1,7 @@
 @echo off
-x86_64-elf-g++ -I./include -Xlinker -n -c kernel.cpp -o kernel.o -ffreestanding -O2 -std=c++11 -Wall -Wextra -fno-exceptions -fno-rtti
-x86_64-elf-g++ -I./include -Xlinker -n -c tty.cpp -o tty.o -ffreestanding -O2 -std=c++11 -Wall -Wextra -fno-exceptions -fno-rtti
-x86_64-elf-g++ -I./include -Xlinker -n -T linker.ld -o kernel.bin -ffreestanding -O2 -nostdlib kernel.o tty.o -lgcc -fno-exceptions -fno-rtti
+SET options=-ffreestanding -O2 -std=c++11 -Wall -Wextra -fno-exceptions -fno-rtti -I./include -Xlinker -n
 
-REM objcopy -S -O binary kaos.bin kernel.bin
+x86_64-elf-g++ %options% -c kernel.cpp -o kernel.o
+x86_64-elf-g++ %options% -c tty.cpp -o tty.o
+x86_64-elf-g++ %options% -T linker.ld -o kernel.bin kernel.o tty.o -lgcc -nostdlib
 
