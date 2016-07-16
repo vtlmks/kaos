@@ -31,9 +31,7 @@
 ;
 ; 0x0000000000100000 - 0x00007fffffffffff (=47 bits) user space, different per mm
 ;
-; Memory layout - Kernelspace
-;
-; Hole caused by [48:63] sign extension
+; Memory layout - Kernelspace - Hole caused by [48:63] sign extension
 ;
 ; 0xfff0000000000000 - 0xffffbfffffffffff (=64 TB  ) direct mapping of all phys. memory
 ; ... Hole ...
