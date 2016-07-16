@@ -64,7 +64,7 @@ PML4T	Equ	0x90000	; 512Gb per entry
 PDPT	Equ	0x91000	;   1Gb per entry
 PDT	Equ	0x92000	;   2Mb per entry
 PDT2	Equ	0x93000
-PT	Equ	0x94000	;   4Kb per entry
+PT_00000000	Equ	0x94000	;   4Kb per entry
 PT_FD000000	Equ	0x95000
 PT_FD200000	Equ	0x96000
 pgTableCount	Equ	7
@@ -74,6 +74,32 @@ EFER:
 
 CR_4:
 .PAE	Equ	5
+
+CR_0:
+.PG	Equ	31
+.PE	Equ	0
+
+PT:
+.P	Equ	0	; Present
+.RW	Equ	1	; Read/Write
+.US	Equ	2	; User/Supervisor
+.PWT	Equ	3	; Write-Through
+.PCD	Equ	4	; Cache Disabled
+.A	Equ	5	; Accessed
+.D	Equ	6	; Dirty
+.PAT	Equ	7	; Page Attribute Table Index - This is combined with bit 3 and 4 to point at different PAT's
+.G	Equ	8	; Global page
+
+PD:
+.P	Equ	0	; Present
+.RW	Equ	1	; Read/Write
+.US	Equ	2	; User/Supervisor
+.PWT	Equ	3	; Write-Through
+.PCD	Equ	4	; Cache Disabled
+.A	Equ	5	; Accessed
+;		6	; Reserved
+.PS	Equ	7	; Page size (0 indicates 4KBytes)
+.G	Equ	8	; Global page (ignored)
 
 ; A pointer to this structure should be supplied to the 64bit kernel in a register.
 ;
@@ -419,7 +445,7 @@ protectedMode	Cli
 	Or	eax, 1 << EFER.LME	; LM-bit
 	Wrmsr
 	Mov	eax, cr0
-	Or	eax, 1 << 31 | 1 << 0 ; PG (Paging) + PM (Protected Mode)
+	Or	eax, 1 << CR_0.PG | 1 << CR_0.PE	; PG (Paging) + PE (Protected Mode Enabled)
 	Mov	cr0, eax
 
 	; Now we are in compatibility mode, one more thing before entering real 64bit mode
@@ -449,23 +475,23 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	;
 
 	Mov	edi, PML4T
-	Mov dword	[edi], PDPT | 3
+	Mov dword	[edi], PDPT | 1 << PD.RW | 1 << PD.P
 
 	Mov	edi, PDPT
 	Mov dword	[edi], PDT | 3
-	Mov dword	[edi + 3 * 8], PDT2 | 3
+	Mov dword	[edi + 3 * 8], PDT2 | 1 << PD.RW | 1 << PD.P
 
 	Mov	edi, PDT
-	Mov dword	[edi], PT | 3
+	Mov dword	[edi], PT_00000000 | 1 << PD.RW | 1 << PD.P
 
 	Mov	edi, PDT2
-	Mov dword	[edi + 488 * 8], PT_FD000000 | 3
-	Mov dword	[edi + 489 * 8], PT_FD200000 | 3
+	Mov dword	[edi + 488 * 8], PT_FD000000 | 1 << PD.RW | 1 << PD.P
+	Mov dword	[edi + 489 * 8], PT_FD200000 | 1 << PD.RW | 1 << PD.P
 
 	; TODO(peter): Should make an initializer list for these, that we create dynamically after setting up screenmode and other stuff.
 
-	Mov	edi, PT		; 0x00000000 -> 0x00200000 (2MB)
-	Mov	ebx, 0x00000003	; R/W + Present
+	Mov	edi, PT_00000000		; 0x00000000 -> 0x00200000 (2MB)
+	Mov	ebx, 1 << PT.RW | 1 << PT.P
 	Mov	ecx, 512
 .setEntry	Mov	[edi], ebx
 	Add	ebx, 0x1000
@@ -473,7 +499,7 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	loop	.setEntry
 
 	Mov	edi, PT_FD000000	; 0xfd000000 -> 0xfd200000 (2MB)
-	Mov	ebx, 0xfd000003
+	Mov	ebx, 0xfd000000 | 1 << PT.RW | 1 << PT.P
 	Mov	ecx, 512
 .setEntry2	Mov	[edi], ebx
 	Add	ebx, 0x1000
@@ -481,7 +507,7 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	loop	.setEntry2
 
 	Mov	edi, PT_FD200000	; 0xfd200000 -> 0xfd400000 (2MB)
-	Mov	ebx, 0xfd200003
+	Mov	ebx, 0xfd200000 | 1 << PT.RW | 1 << PT.P
 	Mov	ecx, 512
 .setEntry3	Mov	[edi], ebx
 	Add	ebx, 0x1000
