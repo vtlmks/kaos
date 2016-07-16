@@ -35,7 +35,7 @@
 ;
 ; Hole caused by [48:63] sign extension
 ;
-; 0xffff800000000000 - 0xffffBfffffffffff (=64 TB  ) direct mapping of all phys. memory
+; 0xfff0000000000000 - 0xffffbfffffffffff (=64 TB  ) direct mapping of all phys. memory
 ; ... Hole ...
 ; 0xffffc90000000000 - 0xffffe8ffffffffff (=45 bits) vmalloc/ioremap space
 ; ... Hole ...
