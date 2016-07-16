@@ -54,22 +54,26 @@ ScreenWidth	Equ	1280
 ScreenHeight	Equ	720
 ScreenBitsPerPixel	Equ	32
 
+; Defines for Memoryprobe
+;
+e820Buffer	Equ	0x1000
+
 ; Defines for PM paging
 ;
-PML4T	equ	0x90000	; 512Gb per entry
-PDPT	equ	0x91000	;   1Gb per entry
-PDT	equ	0x92000	;   2Mb per entry
-PDT2	equ	0x93000
-PT	equ	0x94000	;   4Kb per entry
-PT_FD000000	equ	0x95000
-PT_FD200000	equ	0x96000
-pgTableCount	equ	7
+PML4T	Equ	0x90000	; 512Gb per entry
+PDPT	Equ	0x91000	;   1Gb per entry
+PDT	Equ	0x92000	;   2Mb per entry
+PDT2	Equ	0x93000
+PT	Equ	0x94000	;   4Kb per entry
+PT_FD000000	Equ	0x95000
+PT_FD200000	Equ	0x96000
+pgTableCount	Equ	7
 
 EFER:
-.LME	equ	8
+.LME	Equ	8
 
-ConR4:
-.PAE	equ	5
+CR_4:
+.PAE	Equ	5
 
 ; A pointer to this structure should be supplied to the 64bit kernel in a register.
 ;
@@ -91,7 +95,7 @@ ConR4:
 .lengthLow	ResD	1
 .lengthHigh	ResD	1
 .type	ResD	1
-.pad	ResD	1	; ACPI 3.0 24byte struct
+.pad	ResD	1	; ACPI 3.0 makes the struct 24 bytes long
 .size	endstruc
 
 
@@ -119,7 +123,6 @@ Start	Cld
 	;
 	; load kernel code TODO(peter): Move the 64bit kernel to high mem after entering protected mode and paging is enabled.
 	;
-	Call	resetFloppy
 	Call	loadKernel
 	;
 	; Setup and enter Protected mode, no more IRQ calls after this line, even NMI is blocked.
@@ -322,6 +325,8 @@ printString	PushAD
 ;
 loadKernel	PushAD
 	Push	es
+	Call	resetFloppy
+
 	Mov	ax, KernelOffset>>4 ; This will be a temporary offset where we just load the kernel, we'll then move it to end of memory somewhere to be forgotten..
 	Mov	es, ax
 	XOr	bx, bx	; Buffer offset
@@ -336,6 +341,8 @@ loadKernel	PushAD
 	PopAD
 	Ret
 
+; ==[ resetFloppy ]=====================================================================[ 16bit ]==
+;
 resetFloppy	Mov	ah, 0
 	Mov	dl, 0
 	Int	0x13
@@ -350,7 +357,7 @@ getMemorymap	Mov	eax, 0xe820	; Request memory areas
 	XOr	ebx, ebx
 	Mov	ecx, 24	; Size of request, always request 24 bytes even if we most problably never will see that number return
 	Mov	edx, "PAMS"	; SMAP in little endian
-	Lea	di, [0x1000]	; Buffer to fill with data
+	Lea	di, [e820Buffer]	; Buffer to fill with data
 	Int	0x15
 
 	Jc	.failed	; BIOS calls most often sets carry on failure...
@@ -365,7 +372,7 @@ getMemorymap	Mov	eax, 0xe820	; Request memory areas
 	Call	printString
 
 	mov byte	[loaderInfo + loaderInformation.memInfoCount], 1
-	mov dword	[loaderInfo + loaderInformation.memInfoPtr], 0x1000 
+	mov dword	[loaderInfo + loaderInformation.memInfoPtr], e820Buffer
 
 .nextEntry	Jcxz	.skipEntry	; Skip if zero length (perhaps should check if less than 20 bytes as well)
 	Lea	di, [di + 24]	; Change bufferpointer for next request
@@ -405,7 +412,7 @@ protectedMode	Cli
 	Call	setupPaging
 
 	Mov	eax, cr4
-	Or	eax, 1 << ConR4.PAE	; enable PAE
+	Or	eax, 1 << CR_4.PAE	; enable PAE
 	mov	cr4, eax
 	Mov	ecx, 0xc0000080	; EFER msr
 	Rdmsr
@@ -486,7 +493,6 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Ret
 
 ; =======================================[ the blitter end ]=======================================
-
 
 ; =================================================================================================
 
