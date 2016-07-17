@@ -67,7 +67,8 @@ PDT2	Equ	0x93000
 PT_00000000	Equ	0x94000	;   4Kb per entry
 PT_FD000000	Equ	0x95000
 PT_FD200000	Equ	0x96000
-pgTableCount	Equ	7
+PT_FEE00000	Equ	0x97000
+pgTableCount	Equ	8
 
 EFER:
 .LME	Equ	8
@@ -166,7 +167,7 @@ Start	Cld
 	Jmp	GDT32.code:protectedMode
 	;
 enableSSE	Mov	eax, cr0
-	And	ax, 0xFFFB	;clear coprocessor emulation CR0.EM
+	And	ax, 0xfffb	;clear coprocessor emulation CR0.EM
 	Or	ax, 0x2	;set coprocessor monitoring  CR0.MP
 	Mov	cr0, eax
 	Mov	eax, cr4
@@ -487,6 +488,7 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Mov	edi, PDT2
 	Mov dword	[edi + 488 * 8], PT_FD000000 | 1 << PD.RW | 1 << PD.P
 	Mov dword	[edi + 489 * 8], PT_FD200000 | 1 << PD.RW | 1 << PD.P
+	Mov dword	[edi + 503 * 8], PT_FEE00000 | 1 << PD.RW | 1 << PD.P
 
 	; TODO(peter): Should make an initializer list for these, that we create dynamically after setting up screenmode and other stuff.
 
@@ -498,7 +500,7 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Add	edi, 8
 	loop	.setEntry
 
-	Mov	edi, PT_FD000000	; 0xfd000000 -> 0xfd200000 (2MB)
+	Mov	edi, PT_FD000000		; 0xfd000000 -> 0xfd200000 (2MB)
 	Mov	ebx, 0xfd000000 | 1 << PT.RW | 1 << PT.P
 	Mov	ecx, 512
 .setEntry2	Mov	[edi], ebx
@@ -506,7 +508,7 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Add	edi, 8
 	loop	.setEntry2
 
-	Mov	edi, PT_FD200000	; 0xfd200000 -> 0xfd400000 (2MB)
+	Mov	edi, PT_FD200000		; 0xfd200000 -> 0xfd400000 (2MB)
 	Mov	ebx, 0xfd200000 | 1 << PT.RW | 1 << PT.P
 	Mov	ecx, 512
 .setEntry3	Mov	[edi], ebx
@@ -514,7 +516,15 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	Add	edi, 8
 	loop	.setEntry3
 
-	Mov	edi, PML4T	; startup paging
+	Mov	edi, PT_FEE00000		; 0xfd200000 -> 0xfd400000 (4KB)
+	Mov	ebx, 0xfee00000 | 1 << PT.RW | 1 << PT.P
+	Mov	ecx, 1
+.setEntry4	Mov	[edi], ebx
+	Add	ebx, 0x1000
+	Add	edi, 8
+	loop	.setEntry4
+
+	Mov	edi, PML4T		; startup paging
 	Mov	cr3, edi
 	Ret
 
