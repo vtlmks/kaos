@@ -40,5 +40,5 @@ void interruptsInit() {
 		IDTTable[i].offsetHigh = (u32) ((u64)(&interruptTest)>>32);
 	}
 	asm("lidt %0" : : "m" (IDT));
-//	asm("sti;");
+	asm("sti;");
 }

@@ -14,8 +14,6 @@
 
 extern "C" void kernelmain(LoaderInfo *info);
 
-extern "C" u16 IDTLimit;
-
 void interruptsInit();
 void apicInit();
 
@@ -26,7 +24,8 @@ void kernelmain(LoaderInfo *info)  {
 	ttyInit(info);
 	interruptsInit();
 	apicInit();
-	
+	asm("jmp .;");
+
 //		"cli;"
 //		"mov	%ax,0x10;"
 //		"mov	%ax,%ds;"
@@ -39,7 +38,4 @@ void kernelmain(LoaderInfo *info)  {
 //		//"push	%ebp;"
 //		"sti;"
 //	);
-
-
-	asm("jmp .;");
 }
