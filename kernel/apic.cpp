@@ -3,9 +3,17 @@
 
 
 #define PIT_COMMAND_REGISTER	0x43		// WO
+
+#define PITCMD_CHANNEL2			0x80
+#define PITCMD_ACCESSMODE_LOHI	0x30
+#define PITCMD_ONESHOT			0x2
+
+
 #define PIT_CHANNEL0			0x40		// RW
 #define PIT_CHANNEL1			0x41		// RW
 #define PIT_CHANNEL2			0x42		// RW
+
+
 
 #define KB8042_DATAPORT			0x60		// RW
 #define KB8042_DATAPORT2		0x61
@@ -79,7 +87,7 @@ void apicInit() {
 	u8 r = (in(KB8042_DATAPORT2) & 0xfd) | 1;
 	out(KB8042_DATAPORT2, r);
 
-	out(PIT_COMMAND_REGISTER, 0xb2);
+	out(PIT_COMMAND_REGISTER, PITCMD_CHANNEL2|PITCMD_ACCESSMODE_LOHI|PITCMD_ONESHOT);
 
 	// 1193180/100 Hz = 11931 = 0x2e9b
 	out(PIT_CHANNEL2, 0x9b);
@@ -89,7 +97,7 @@ void apicInit() {
 	// reset PIT one-shot counter
 	u8 oneshot = in(KB8042_DATAPORT2) & 0xfe;
 	out(KB8042_DATAPORT2, oneshot);
-	oneshot |= 1;
+	oneshot |= 1;									// enable PIT channel 2 gate
 	out(KB8042_DATAPORT2, oneshot);
 
 	((u64*) (apic+APIC_INITIAL_COUNT_REGISTER))[0] = 0xffffffff;		// start from -1
