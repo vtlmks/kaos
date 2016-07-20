@@ -14,13 +14,19 @@
 
 extern "C" void kernelmain(LoaderInfo *info);
 
+extern "C" u16 IDTLimit;
+
+void interruptsInit();
 void apicInit();
 
-void kernelmain(LoaderInfo *info) {
+void kernelmain(LoaderInfo *info) __attribute__((section(".kernelmain")));
+void kernelmain(LoaderInfo *info)  {
 	//(".intel_syntax noprefix");
 //	asm("mov	$0xdeadbeef,%rax;");
 	ttyInit(info);
-	asm("jmp .;");
+	interruptsInit();
+	apicInit();
+	
 //		"cli;"
 //		"mov	%ax,0x10;"
 //		"mov	%ax,%ds;"
@@ -34,20 +40,6 @@ void kernelmain(LoaderInfo *info) {
 //		"sti;"
 //	);
 
-	apicInit();
 
-	//asm("jmp $");
-
-}
-
-#define IA32_APIC_BASE_MSR 0x1B
-#define IA32_APIC_BASE_MSR_BSP 0x100 // Processor is a BSP
-#define IA32_APIC_BASE_MSR_ENABLE 0x800
-
-//#define rdmsr(msr,val1,val2) asm volatile("rdmsr" : "=a" (val1), "=d" (val2) : "c" (msr)); // __asm  ("rdmsr" : "=a"(eax), "=d"(edx) : "c"(ecx));
-//#define rdmsr(msr, lo, hi) asm volatile("rdmsr" : "=a"(*lo), "=d"(*hi) : "c"(msr));
-
-
-void apicInit() {
-	//__readmsr(0x1b);
+	asm("jmp .;");
 }

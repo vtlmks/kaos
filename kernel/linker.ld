@@ -3,6 +3,10 @@ ENTRY("kernelmain")
 SECTIONS
 {
 	. = 0x10000;
+	.kernelmain :
+	{
+		*(.kernelmain)
+	}
 	.text : { *(.text) }
 	.data : { *(.data) } 
 }
