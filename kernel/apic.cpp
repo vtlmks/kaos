@@ -94,21 +94,26 @@ void apicInit() {
 	in(KB8042_DATAPORT);			// delay
 	out(PIT_CHANNEL2, 0x2e);
 
-	// reset PIT one-shot counter
-	u8 oneshot = in(KB8042_DATAPORT2) & 0xfe;
+	// clear and set bit 0 of IO port 0x61 before reloading PIT one-shot counter
+	u8 oneshot = in(KB8042_DATAPORT2) & ~1;
 	out(KB8042_DATAPORT2, oneshot);
 	oneshot |= 1;									// enable PIT channel 2 gate
 	out(KB8042_DATAPORT2, oneshot);
 
 	((u64*) (apic+APIC_INITIAL_COUNT_REGISTER))[0] = 0xffffffff;		// start from -1
 
+
 	while((in(KB8042_DATAPORT2) & 0x20) != 0)							// wait for PIT
 
 	((u64*) (apic+APIC_LVT_TIMER_REGISTER))[0] = APIC_DISABLE;			// stop
 
 	currentCount = ((u64*) (apic+APIC_CURRENT_COUNT_REGISTER))[0];
-	currentCount *=16;
-	currentCount *=100;
+	// 0xfee01003
+
+	//currentCount *=16;
+	//currentCount *=100;
+
+
 
 	// done
 	asm("mov currentCount,%ebx;");
