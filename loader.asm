@@ -51,24 +51,13 @@
 KernelOffset	Equ	0x10000	; Where to load the kernel
 
 ScreenWidth	Equ	1280
-ScreenHeight	Equ	720
-ScreenBitsPerPixel	Equ	32
+ScreenHeight	Equ	1024	; test with vbox, else 720
+ScreenBitsPerPixel Equ	32
 
 ; Defines for Memoryprobe
 ;
 e820Buffer	Equ	0x1000
-
-; Defines for PM paging
-;
-PML4T	Equ	0x90000	; 512Gb per entry
-PDPT	Equ	0x91000	;   1Gb per entry
-PDT	Equ	0x92000	;   2Mb per entry
-PDT2	Equ	0x93000
-PT_00000000	Equ	0x94000	;   4Kb per entry
-PT_FD000000	Equ	0x95000
-PT_FD200000	Equ	0x96000
-PT_FEE00000	Equ	0x97000
-pgTableCount	Equ	8
+PGTable	Equ	0x90000
 
 EFER:
 .LME	Equ	8
@@ -464,68 +453,36 @@ protectedMode	Cli
 setupPaging	Mov	eax, cr0	; Disable paging
 	And	eax, 0x7fffffff
 	Mov	cr0, eax
-	;
-	; HACK(peter): Clearing page memory, should be dynamic and moved to a 'set page' or something
-	;
 
-	Mov	edi, PML4T
-	XOr	eax, eax
-	Mov	ecx, pgTableCount * 4096
-	Rep Stosb
-	;
+	Lea	edi, [PGTable]	; Clear 6 pagetable entries (24kb)
+	Xor	eax, eax
+	Mov	ecx, (4096*6)/4
+	Rep stosd
 
-	Mov	edi, PML4T
-	Mov dword	[edi], PDPT | 1 << PD.RW | 1 << PD.P
+	Lea	edi, [PGTable]	; Setup the first PML4 entry to point to first PD
+	Lea	eax, [edi + 0x1007]
+	Mov	[edi], eax
 
-	Mov	edi, PDPT
-	Mov dword	[edi], PDT | 3
-	Mov dword	[edi + 3 * 8], PDT2 | 1 << PD.RW | 1 << PD.P
-
-	Mov	edi, PDT
-	Mov dword	[edi], PT_00000000 | 1 << PD.RW | 1 << PD.P
-
-	Mov	edi, PDT2
-	Mov dword	[edi + 488 * 8], PT_FD000000 | 1 << PD.RW | 1 << PD.P
-	Mov dword	[edi + 489 * 8], PT_FD200000 | 1 << PD.RW | 1 << PD.P
-	Mov dword	[edi + 503 * 8], PT_FEE00000 | 1 << PD.RW | 1 << PD.P
-
-	; TODO(peter): Should make an initializer list for these, that we create dynamically after setting up screenmode and other stuff.
-
-	Mov	edi, PT_00000000		; 0x00000000 -> 0x00200000 (2MB)
-	Mov	ebx, 1 << PT.RW | 1 << PT.P
-	Mov	ecx, 512
-.setEntry	Mov	[edi], ebx
-	Add	ebx, 0x1000
+	Lea	edi, [PGTable + 0x1000] ; Setup 4 pagetable entries
+	Lea	eax, [edi + 0x1007]
+	Mov	ecx, 4
+.l	Mov	[edi], eax
+	Add	eax, 0x1000
 	Add	edi, 8
-	loop	.setEntry
+	Dec	ecx
+	Jnz	.l
 
-	Mov	edi, PT_FD000000		; 0xfd000000 -> 0xfd200000 (2MB)
-	Mov	ebx, 0xfd000000 | 1 << PT.RW | 1 << PT.P
-	Mov	ecx, 512
-.setEntry2	Mov	[edi], ebx
-	Add	ebx, 0x1000
+	Lea	edi, [PGTable + 0x2000] ; Setup 2MB pages for the entire 4GB area
+	Mov	eax, 0x183
+	Mov	ecx, 2048
+.l2	Mov	[edi], eax
+	Add	eax, 0x200000
 	Add	edi, 8
-	loop	.setEntry2
+	Dec	ecx
+	Jnz	.l2
 
-	Mov	edi, PT_FD200000		; 0xfd200000 -> 0xfd400000 (2MB)
-	Mov	ebx, 0xfd200000 | 1 << PT.RW | 1 << PT.P
-	Mov	ecx, 512
-.setEntry3	Mov	[edi], ebx
-	Add	ebx, 0x1000
-	Add	edi, 8
-	loop	.setEntry3
-
-	Mov	edi, PT_FEE00000		; 0xfd200000 -> 0xfd400000 (4KB)
-	Mov	ebx, 0xfee00000 | 1 << PT.RW | 1 << PT.P | 1 << PT.PCD	; Page is non cacheable
-	Mov	ecx, 1
-.setEntry4	Mov	[edi], ebx
-	Add	ebx, 0x1000
-	Add	edi, 8
-	loop	.setEntry4
-
-
-	Mov	edi, PML4T		; start paging
-	Mov	cr3, edi
+	Lea	eax, [PGTable]
+	Mov	cr3, eax
 	Ret
 
 ; =======================================[ the blitter end ]=======================================
