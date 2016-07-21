@@ -22,7 +22,7 @@ struct Screen {
 };
 
 struct TTY {
-	u16	widht;
+	u16	width;
 	u16	height;
 	u16	charWidth;
 	u16	charHeight;
@@ -31,37 +31,73 @@ struct TTY {
 
 PSF2	*psf;
 u8		*font;
-u32	*frameBuffer;
+u32		*frameBuffer;
 
-u32	backColor;
-u32	frontColor;
+u32		backColor;
+u32		frontColor;
 
-u16	charColor;
-u16	screenWidth;
-u16	screenHeight;
-Pos	cursor;
+u16		charColor;
+u16		screenWidth;
+u16		screenHeight;
+Pos		cursor;
 
 TTY	defaultTTY;
 
-void putchar(int c) {
-	if(c == '\n') {
-		defaultTTY.cursorPos.x = 0;
-		++defaultTTY.cursorPos.y;
-		return;
-	}
-	u16 character = charColor << 8 | c;
 
-	frameBuffer[defaultTTY.cursorPos.x + defaultTTY.cursorPos.y * 80] = character;
-	defaultTTY.cursorPos.x++;
+void scrollOneUp() {
+	u32 rows = 720 - psf->height;
+	for(u32 i = 0; i < 1280 * rows; ++i) {
+		frameBuffer[i] = frameBuffer[i + (1280 * psf->height)];
+	}
+	for(u32 i = 0; i < 1280 * psf->height; ++i) {
+		frameBuffer[(rows * 1280) + i] = defaultBackColor;
+	}
 }
 
+inline void writeChar(int character, Pos *cur) {
+	for(u32 row = 0; row < psf->height; ++row) {
+		if(u16 fontRowData = font[(character * psf->charSize) + row]) {
+			for(u32 pixel = 0; pixel < psf->width; ++pixel) {
+				if(fontRowData & 1 << pixel) {
+					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * 1280) + (psf->width - pixel)] = defaultFrontColor;
+				}
+			}
+		}
+	}
+}
+
+void advanceCursorX() {
+	++cursor.x;
+	if(cursor.x >= defaultTTY.width) {
+		cursor.x = 0;
+		++cursor.y;
+	}
+	if(cursor.y >= defaultTTY.height) {
+		--cursor.y;
+		scrollOneUp();
+	}
+}
+
+void newLine() {
+	cursor.x = 0;
+	++cursor.y;
+	if(cursor.y >= defaultTTY.height) {
+		--cursor.y;
+		scrollOneUp();
+	}
+}
 
 static void printchar(char **str, int c) {
 	if(str) {
 		**str = c;
 		++(*str);
 	} else {
-		putchar(c);
+		if(c == '\n') {
+			newLine();
+		} else {
+			writeChar(c, &cursor);
+			advanceCursorX();
+		}
 	}
 }
 
@@ -153,58 +189,58 @@ static int printInteger(char **out, s64 i, int b, int sg, int width, int pad, in
 	return chars + prints(out, s, width, pad);
 }
 
-static int print(char **out, const char *format, va_list args) {
+static int print(char **out, const char *formatString, va_list args) {
 	int width, pad;
 	int pc = 0;
 	char scr[2];
 
-	for(; *format != 0; ++format) {
-		if(*format == '%') {
-			++format;
+	for(; *formatString != 0; ++formatString) {
+		if(*formatString == '%') {
+			++formatString;
 			width = pad = 0;
-			if(*format == '\0') break;
-			if(*format == '%') goto out;
-			if(*format == '-') {
-				++format;
+			if(*formatString == '\0') break;
+			if(*formatString == '%') goto out;
+			if(*formatString == '-') {
+				++formatString;
 				pad = PAD_RIGHT;
 			}
-			while(*format == '0') {
-				++format;
+			while(*formatString == '0') {
+				++formatString;
 				pad |= PAD_ZERO;
 			}
-			for(; *format >= '0' && *format <= '9'; ++format) {
+			for(; *formatString >= '0' && *formatString <= '9'; ++formatString) {
 				width *= 10;
-				width += *format - '0';
+				width += *formatString - '0';
 			}
-			if(*format == 's') {
+			if(*formatString == 's') {
 				char *s =(char *)va_arg(args, int);
 				pc += prints(out, s ? s : "(null)", width, pad);
 				continue;
 			}
-			if(*format == 'd') {
+			if(*formatString == 'd') {
 				pc += printInteger(out, va_arg(args, s64), 10, 1, width, pad, 'a');
 				continue;
 			}
-			if(*format == 'x') {
+			if(*formatString == 'x') {
 				pc += printInteger(out, va_arg(args, s64), 16, 0, width, pad, 'a');
 				continue;
 			}
-			if(*format == 'X') {
+			if(*formatString == 'X') {
 				pc += printInteger(out, va_arg(args, s64), 16, 0, width, pad, 'A');
 				continue;
 			}
-			if(*format == 'u') {
+			if(*formatString == 'u') {
 				pc += printInteger(out, va_arg(args, s64), 10, 0, width, pad, 'a');
 				continue;
 			}
-			if(*format == 'c') {
+			if(*formatString == 'c') {
 				scr[0] =(char)va_arg(args, int);
 				scr[1] = '\0';
 				pc += prints(out, scr, width, pad);
 				continue;
 			}
 		} else {
-out:		printchar(out, *format);
+out:		printchar(out, *formatString);
 			++pc;
 		}
 	}
@@ -213,16 +249,16 @@ out:		printchar(out, *format);
 	return pc;
 }
 
-int kprintf(const char *format, ...) {
+int kprintf(const char *formatString, ...) {
 	va_list args;
-	va_start(args, format);
-	return print(0, format, args);
+	va_start(args, formatString);
+	return print(0, formatString, args);
 }
 
-int sprintf(char *out, const char *format, ...) {
+int sprintf(char *out, const char *formatString, ...) {
 	va_list args;
-	va_start(args, format);
-	return print(&out, format, args);
+	va_start(args, formatString);
+	return print(&out, formatString, args);
 }
 
 /*
@@ -236,63 +272,51 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-void writeString(const char *stringBuffer, Pos *cur = &cursor) {
-	u16 fontRowData = 0;
-	while(u8 character = *stringBuffer++) {
-		if(character == '\n') {
-			++cur->y;
-			cur->x = 0;
-		} else {
-			for(u32 row = 0; row < psf->height; ++row) {
-				if((fontRowData = font[(character * psf->charSize) + row])) {
-					for(u32 pixel = 0; pixel < psf->width; ++pixel) {
-						if(fontRowData & 1 << pixel) {
-							frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * 1280) + (psf->width - pixel)] = defaultFrontColor;
-						}
-					}
-				} else {
-					continue;
-				}
-			}
-			++cur->x;
-		}
-	}
-}
+// void writeString(const char *stringBuffer, Pos *cur = &cursor) {
+	// while(u8 character = *stringBuffer++) {
+		// if(character == '\n') {
+			// ++cur->y;
+			// cur->x = 0;
+		// } else {
+			// writeChar(character, cur);
+		// }
+	// }
+// }
 
 
-void writeString(const char *stringBuffer, u32 color) {
-	frontColor = color;
-	writeString(stringBuffer, &cursor);
-}
+// void writeString(const char *stringBuffer, u32 color) {
+	// frontColor = color;
+	// writeString(stringBuffer, &cursor);
+// }
 
 void ttyInit(LoaderInfo *info) {
-	char buffer[200];
-
+//	char buffer[200];
 	cursor		= {0, 0};
 	psf			= (PSF2 *)&fontLat2Terminus16;
-	font			= (u8 *)(psf) + psf->headerSize;
+	font		= (u8 *)(psf) + psf->headerSize;
 
-	frameBuffer	= info->vesaPhysBasePtr;	// TODO: Fix this.
+	// TODO(peter): Initialize defaultTTY
+	defaultTTY.width = 1280 / psf->width;
+	defaultTTY.height = 720 / psf->height;
+
+	frameBuffer	= info->vesaPhysBasePtr;
 	backColor	= defaultBackColor;
 	frontColor	= defaultFrontColor;
 
 	memInfo *e820Mem	= info->memInfoPtr;
 
-	for(u32 i = 0; i < 1280 * 720; ++i) {	// clear screen
+	for(u32 i = 0; i < 1280 * 720; ++i) {
 		frameBuffer[i] = defaultBackColor;
 	}
 
-	writeString("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
+	kprintf("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
+	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
+	kprintf("\nMemlist\n~~~~~~~\n");
 
-	sprintf(buffer, "\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
-	writeString(buffer);
-
-	sprintf(buffer, "\nMemlist\n~~~~~~~\n");
-	writeString(buffer);
-
-	for(u8 i = 0; i < info->memInfoCount; ++i) {
-		sprintf(buffer, " From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
-		writeString(buffer);
+	for(u8 j = 0; j < 20; ++j) {
+		for(u8 i = 0; i < info->memInfoCount; ++i) {
+			kprintf(" From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
+		}
 	}
 }
 

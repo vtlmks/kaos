@@ -112,7 +112,6 @@ PD:
 .vesaPixelHeight	ResW	1	;
 .memInfoCount	ResB	1	; number of memory regions 1 -> 128 (e820)
 .vesaPixelDepth	ResB	1	; Should never be anything but 32, but in case we want to support something else.
-
 .size	endstruc
 
 
@@ -436,11 +435,13 @@ protectedMode	Cli
 	Mov	esp, 0x90000
 
 	; Prepare to enter Long Mode
-	Call	setupPaging
 
 	Mov	eax, cr4
 	Or	eax, 1 << CR_4.PAE	; enable PAE
 	mov	cr4, eax
+
+	Call	setupPaging
+
 	Mov	ecx, 0xc0000080	; EFER msr
 	Rdmsr
 	Or	eax, 1 << EFER.LME	; LM-bit
@@ -458,21 +459,19 @@ protectedMode	Cli
 	Cli	; if we were to ever get back
 	Hlt	; for debugging purposes
 
-
 ; ==[ setupPaging ]=====================================================================[ 32bit ]==
 ;
 setupPaging	Mov	eax, cr0	; Disable paging
 	And	eax, 0x7fffffff
 	Mov	cr0, eax
-
 	;
 	; HACK(peter): Clearing page memory, should be dynamic and moved to a 'set page' or something
 	;
 
 	Mov	edi, PML4T
 	XOr	eax, eax
-	Mov	ecx, pgTableCount * 1024
-	Rep Stosd
+	Mov	ecx, pgTableCount * 4096
+	Rep Stosb
 	;
 
 	Mov	edi, PML4T
@@ -517,14 +516,15 @@ setupPaging	Mov	eax, cr0	; Disable paging
 	loop	.setEntry3
 
 	Mov	edi, PT_FEE00000		; 0xfd200000 -> 0xfd400000 (4KB)
-	Mov	ebx, 0xfee00000 | 1 << PT.RW | 1 << PT.P
+	Mov	ebx, 0xfee00000 | 1 << PT.RW | 1 << PT.P | 1 << PT.PCD	; Page is non cacheable
 	Mov	ecx, 1
 .setEntry4	Mov	[edi], ebx
 	Add	ebx, 0x1000
 	Add	edi, 8
 	loop	.setEntry4
 
-	Mov	edi, PML4T		; startup paging
+
+	Mov	edi, PML4T		; start paging
 	Mov	cr3, edi
 	Ret
 
