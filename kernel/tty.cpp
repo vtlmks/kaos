@@ -44,21 +44,55 @@ Pos		cursor;
 TTY	defaultTTY;
 
 
+u32 rows;
+u32 count;
+u32 offset;
+
 void scrollOneUp() {
-	u32 rows = 720 - psf->height;
-	for(u32 i = 0; i < 1280 * rows; ++i) {
-		frameBuffer[i] = frameBuffer[i + (1280 * psf->height)];
-	}
-	for(u32 i = 0; i < 1280 * psf->height; ++i) {
-		frameBuffer[(rows * 1280) + i] = defaultBackColor;
-	}
+	rows = 720 - psf->height;
+	count = rows * 1280 / 2;
+	offset = (psf->height * 1280 * 4) + 0xfd000000;
+
+
+	asm("mov count, %ecx;");
+	asm("mov frameBuffer, %edi;");
+	asm("mov offset, %esi;");
+	asm("rep movsq;");
+
+	count = psf->height * 1280;
+	offset = 0xfd000000 + (rows * 1280 * 4);
+
+	asm("mov count, %ecx;");
+	asm("mov offset, %edi;");
+	asm("mov backColor, %eax;");
+	asm("rep stosl;");
+
+	// for(u32 i = 0; i < 1280 * rows; ++i) {
+		// framebuffer[i] = framebuffer[i + (1280 * psf->height)];
+	// }
+	// for(u32 i = 0; i < 1280 * psf->height; ++i) {
+		// frameBuffer[(rows * 1280) + i] = defaultBackColor;
+	// }
+}
+
+void clearScreen() {
+	count = 720 * 1280;
+
+	asm("mov count, %ecx;");
+	asm("mov frameBuffer, %edi;");
+	asm("mov backColor, %eax;");
+	asm("rep stosl;");
+
+	// for(u32 i = 0; i < 1280 * 720; ++i) {
+		// frameBuffer[i] = defaultBackColor;
+	// }
 }
 
 inline void writeChar(int character, Pos *cur) {
-	for(u32 row = 0; row < psf->height; ++row) {
-		if(u16 fontRowData = font[(character * psf->charSize) + row]) {
-			for(u32 pixel = 0; pixel < psf->width; ++pixel) {
-				if(fontRowData & 1 << pixel) {
+	for(u8 row = 0; row < psf->height; ++row) {
+		if(u8 fontRowData = font[(character * psf->charSize) + row]) {
+			for(u8 pixel = 0; pixel < psf->width; ++pixel) {
+				if(fontRowData & (1 << pixel)) {
 					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * 1280) + (psf->width - pixel)] = defaultFrontColor;
 				}
 			}
@@ -66,7 +100,7 @@ inline void writeChar(int character, Pos *cur) {
 	}
 }
 
-void advanceCursorX() {
+inline void advanceCursorX() {
 	++cursor.x;
 	if(cursor.x >= defaultTTY.width) {
 		cursor.x = 0;
@@ -78,7 +112,7 @@ void advanceCursorX() {
 	}
 }
 
-void newLine() {
+inline void newLine() {
 	cursor.x = 0;
 	++cursor.y;
 	if(cursor.y >= defaultTTY.height) {
@@ -87,7 +121,7 @@ void newLine() {
 	}
 }
 
-static void printchar(char **str, int c) {
+inline void printchar(char **str, int c) {
 	if(str) {
 		**str = c;
 		++(*str);
@@ -104,7 +138,7 @@ static void printchar(char **str, int c) {
 #define PAD_RIGHT	1
 #define PAD_ZERO	2
 
-static int prints(char **out, const char *string, int width, int pad) {
+inline int prints(char **out, const char *string, int width, int pad) {
 	int pc = 0, padchar = ' ';
 
 	if(width > 0) {
@@ -145,7 +179,7 @@ static int prints(char **out, const char *string, int width, int pad) {
 
 #define BUFFER_LENGTH 20
 
-static int printInteger(char **out, s64 i, int b, int sg, int width, int pad, int letbase) {
+int printInteger(char **out, s64 i, int b, int sg, int width, int pad, int letbase) {
 	char	buffer[BUFFER_LENGTH];
 	char	*s;
 	u32	t;
@@ -189,7 +223,7 @@ static int printInteger(char **out, s64 i, int b, int sg, int width, int pad, in
 	return chars + prints(out, s, width, pad);
 }
 
-static int print(char **out, const char *formatString, va_list args) {
+int print(char **out, const char *formatString, va_list args) {
 	int width, pad;
 	int pc = 0;
 	char scr[2];
@@ -305,18 +339,14 @@ void ttyInit(LoaderInfo *info) {
 
 	memInfo *e820Mem	= info->memInfoPtr;
 
-	for(u32 i = 0; i < 1280 * 720; ++i) {
-		frameBuffer[i] = defaultBackColor;
-	}
+	clearScreen();
 
 	kprintf("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
 	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
 	kprintf("\nMemlist\n~~~~~~~\n");
 
-	for(u8 j = 0; j < 20; ++j) {
-		for(u8 i = 0; i < info->memInfoCount; ++i) {
-			kprintf(" From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
-		}
+	for(u8 i = 0; i < info->memInfoCount; ++i) {
+		kprintf(" From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
 	}
 }
 
