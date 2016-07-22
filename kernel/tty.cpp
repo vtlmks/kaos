@@ -7,7 +7,6 @@
 #include "fontLat2Terminus16.h"
 #include "psf.h"
 
-
 #define	defaultFrontColor	0xfff0a438
 #define	defaultBackColor	0xff0c1420
 
@@ -24,8 +23,6 @@ struct Screen {
 struct TTY {
 	u16	width;
 	u16	height;
-	u16	charWidth;
-	u16	charHeight;
 	Pos	cursorPos;
 };
 
@@ -33,64 +30,30 @@ PSF2	*psf;
 u8		*font;
 u32		*frameBuffer;
 
-u32		backColor;
-u32		frontColor;
-
-u16		charColor;
-u16		screenWidth;
-u16		screenHeight;
-Pos		cursor;
-
-TTY	defaultTTY;
-
-
-u32 rows;
-u32 count;
-u32 offset;
+TTY		defaultTTY;
 
 void scrollOneUp() {
-	rows = 720 - psf->height;
-	count = rows * 1280 / 2;
-	offset = (psf->height * 1280 * 4) + 0xfd000000;
+	u16 rows = 720 - psf->height;
 
-
-	asm("mov count, %ecx;");
-	asm("mov frameBuffer, %edi;");
-	asm("mov offset, %esi;");
-	asm("rep movsq;");
-
-	count = psf->height * 1280;
-	offset = 0xfd000000 + (rows * 1280 * 4);
-
-	asm("mov count, %ecx;");
-	asm("mov offset, %edi;");
-	asm("mov backColor, %eax;");
-	asm("rep stosl;");
-
-	// for(u32 i = 0; i < 1280 * rows; ++i) {
-		// framebuffer[i] = framebuffer[i + (1280 * psf->height)];
-	// }
-	// for(u32 i = 0; i < 1280 * psf->height; ++i) {
-		// frameBuffer[(rows * 1280) + i] = defaultBackColor;
-	// }
+	for(u32 i = 0; i < 1280 * rows; ++i) {
+		frameBuffer[i] = frameBuffer[i + (1280 * psf->height)];
+	}
+	for(u32 i = 0; i < 1280 * psf->height; ++i) {
+		frameBuffer[(rows * 1280) + i] = defaultBackColor;
+	}
 }
 
 void clearScreen() {
-	count = 720 * 1280;
-
-	asm("mov count, %ecx;");
-	asm("mov frameBuffer, %edi;");
-	asm("mov backColor, %eax;");
-	asm("rep stosl;");
-
-	// for(u32 i = 0; i < 1280 * 720; ++i) {
-		// frameBuffer[i] = defaultBackColor;
-	// }
+	for(u32 i = 0; i < 1280 * 720; ++i) {
+		frameBuffer[i] = defaultBackColor;
+	}
 }
 
 inline void writeChar(int character, Pos *cur) {
+	u16 fontRowData;
 	for(u8 row = 0; row < psf->height; ++row) {
-		if(u8 fontRowData = font[(character * psf->charSize) + row]) {
+		fontRowData = font[(character * psf->charSize) + row];
+		if(fontRowData) {
 			for(u8 pixel = 0; pixel < psf->width; ++pixel) {
 				if(fontRowData & (1 << pixel)) {
 					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * 1280) + (psf->width - pixel)] = defaultFrontColor;
@@ -101,22 +64,22 @@ inline void writeChar(int character, Pos *cur) {
 }
 
 inline void advanceCursorX() {
-	++cursor.x;
-	if(cursor.x >= defaultTTY.width) {
-		cursor.x = 0;
-		++cursor.y;
+	++defaultTTY.cursorPos.x;
+	if(defaultTTY.cursorPos.x >= defaultTTY.width) {
+		defaultTTY.cursorPos.x = 0;
+		++defaultTTY.cursorPos.y;
 	}
-	if(cursor.y >= defaultTTY.height) {
-		--cursor.y;
+	if(defaultTTY.cursorPos.y >= defaultTTY.height) {
+		--defaultTTY.cursorPos.y;
 		scrollOneUp();
 	}
 }
 
 inline void newLine() {
-	cursor.x = 0;
-	++cursor.y;
-	if(cursor.y >= defaultTTY.height) {
-		--cursor.y;
+	defaultTTY.cursorPos.x = 0;
+	++defaultTTY.cursorPos.y;
+	if(defaultTTY.cursorPos.y >= defaultTTY.height) {
+		--defaultTTY.cursorPos.y;
 		scrollOneUp();
 	}
 }
@@ -129,7 +92,7 @@ inline void printchar(char **str, int c) {
 		if(c == '\n') {
 			newLine();
 		} else {
-			writeChar(c, &cursor);
+			writeChar(c, &defaultTTY.cursorPos);
 			advanceCursorX();
 		}
 	}
@@ -182,10 +145,10 @@ inline int prints(char **out, const char *string, int width, int pad) {
 int printInteger(char **out, s64 i, int b, int sg, int width, int pad, int letbase) {
 	char	buffer[BUFFER_LENGTH];
 	char	*s;
-	u32	t;
-	u32	neg = 0;
-	u32	chars = 0;
-	u64	u = i;
+	u32		t;
+	u32		neg = 0;
+	u32		chars = 0;
+	u64		u = i;
 
 	if(i == 0) {
 		buffer[0] = '0';
@@ -233,7 +196,7 @@ int print(char **out, const char *formatString, va_list args) {
 			++formatString;
 			width = pad = 0;
 			if(*formatString == '\0') break;
-			if(*formatString == '%') goto out;
+			if(*formatString == '%') goto next;
 			if(*formatString == '-') {
 				++formatString;
 				pad = PAD_RIGHT;
@@ -274,7 +237,7 @@ int print(char **out, const char *formatString, va_list args) {
 				continue;
 			}
 		} else {
-out:		printchar(out, *formatString);
+next:		printchar(out, *formatString);
 			++pc;
 		}
 	}
@@ -306,36 +269,17 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-// void writeString(const char *stringBuffer, Pos *cur = &cursor) {
-	// while(u8 character = *stringBuffer++) {
-		// if(character == '\n') {
-			// ++cur->y;
-			// cur->x = 0;
-		// } else {
-			// writeChar(character, cur);
-		// }
-	// }
-// }
-
-
-// void writeString(const char *stringBuffer, u32 color) {
-	// frontColor = color;
-	// writeString(stringBuffer, &cursor);
-// }
-
+/*
+ * Initialize TTY
+ */
 void ttyInit(LoaderInfo *info) {
-//	char buffer[200];
-	cursor		= {0, 0};
 	psf			= (PSF2 *)&fontLat2Terminus16;
 	font		= (u8 *)(psf) + psf->headerSize;
-
-	// TODO(peter): Initialize defaultTTY
-	defaultTTY.width = 1280 / psf->width;
-	defaultTTY.height = 720 / psf->height;
-
 	frameBuffer	= info->vesaPhysBasePtr;
-	backColor	= defaultBackColor;
-	frontColor	= defaultFrontColor;
+
+	defaultTTY.width	= 1280 / psf->width;
+	defaultTTY.height	= 720 / psf->height;
+	defaultTTY.cursorPos = {};
 
 	memInfo *e820Mem	= info->memInfoPtr;
 
@@ -345,8 +289,9 @@ void ttyInit(LoaderInfo *info) {
 	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
 	kprintf("\nMemlist\n~~~~~~~\n");
 
+//	for(u8 j = 0; j < 200; ++j) {
 	for(u8 i = 0; i < info->memInfoCount; ++i) {
 		kprintf(" From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
 	}
+//	}
 }
-

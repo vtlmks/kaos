@@ -7,20 +7,20 @@ Stage2Offset	Equ	0x8000
 
 start: 	jmp	start0
 
-    	Db	'KAOS 0.0'
-    	Dw	0x200	; bytes/sector
-    	Db	0x1	; sector/cluster
-    	Dw	0x1	; sector reserved
-    	Db	0x2	; FATs
-    	Dw	0xe0	; root directory entries
-    	Dw	0xb40	; sectors
-    	Db	0xf0	; media
-    	Dw	0x9	; sectors/FAT
-    	Dw	0x12	; sectors/track
-    	Dw	0x2	; heads
-    	Dd	0	; hidden sectors
-    	Dd	0	; sectors again
-    	Db	0	; drive
+	Db	'KAOS 0.0'
+	Dw	0x200	; bytes/sector
+	Db	0x1	; sector/cluster
+	Dw	0x1	; sector reserved
+	Db	0x2	; FATs
+	Dw	0xe0	; root directory entries
+	Dw	0xb40	; sectors
+	Db	0xf0	; media
+	Dw	0x9	; sectors/FAT
+	Dw	0x12	; sectors/track
+	Dw	0x2	; heads
+	Dd	0	; hidden sectors
+	Dd	0	; sectors again
+	Db	0	; drive
 	Db	0	; reserved
 	Db	0x29	; signature
 	Dd	0xa0a1a2a3	; volumeid

@@ -1,12 +1,24 @@
 OUTPUT_FORMAT("binary")
 ENTRY("kernelmain")
-SECTIONS
-{
+SECTIONS {
 	. = 0x10000;
-	.kernelmain :
-	{
+	.kernelmain : {
 		*(.kernelmain)
 	}
-	.text : { *(.text) }
-	.data : { *(.data) } 
+
+	.text : {
+		*(.text)
+	}
+
+	.rodata : {
+		*(.rodata)
+	}
+
+	.data : {
+		*(.data)
+	}
+
+	.bss : {
+		*(.bss)
+	}
 }
