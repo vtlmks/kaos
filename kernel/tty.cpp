@@ -286,7 +286,7 @@ void setupTTY(LoaderInfo *info) {
 	psf					= (PSF2 *)&fontLat2Terminus16;
 	font				= (u8 *)(psf) + psf->headerSize;
 	frameBuffer			= info->vesaPhysBasePtr;
-	MemInfo *e820Mem	= info->memInfoPtr;
+	e820entry *e820Mem	= info->memInfoPtr;
 
 	defaultTTY.width		= 1280 / psf->width;
 	defaultTTY.height		= 720 / psf->height;
