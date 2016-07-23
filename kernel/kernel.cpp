@@ -17,6 +17,8 @@ extern "C" void kernelmain(LoaderInfo *info);
 void setupInterrupts();
 void setupApic();
 
+void e820(LoaderInfo *info);
+
 void setupPaging(LoaderInfo *info);
 
 void kernelmain(LoaderInfo *info) __attribute__((section(".kernelmain")));
