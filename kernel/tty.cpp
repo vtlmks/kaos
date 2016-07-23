@@ -301,7 +301,7 @@ void setupTTY(LoaderInfo *info) {
 
 //	for(u8 j = 0; j < 200; ++j) {
 	for(u8 i = 0; i < info->memInfoCount; ++i) {
-		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Mem[i].from, e820Mem[i].length, memType[e820Mem[i].flag]);
+		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Mem[i].addr, e820Mem[i].size, memType[e820Mem[i].type]);
 	}
 //	}
 }
