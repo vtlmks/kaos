@@ -1,7 +1,7 @@
 #pragma once
 
 
-struct e820entry {
+struct e820Entry {
 	u64	addr;
 	u64	size;
 	u32	type;

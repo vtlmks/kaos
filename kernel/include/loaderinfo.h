@@ -1,15 +1,15 @@
 #pragma once
 
 #include <types.h>
-#include <meminfo.h>
+#include <e820.h>
 
-struct __attribute__ ((__packed__)) LoaderInfo {
-	MemInfo	*memInfoPtr;
-	u32		*vesaPhysBasePtr;
-	u16		vesaBytesPerRow;
-	u16		vesaPixelWidth;
-	u16		vesaPixelHeight;
-	u8		memInfoCount;
-	u8		vesaPixelDepth;
-};
+struct LoaderInfo {
+	e820Entry	*e820Ptr;
+	u32			*vesaPhysBasePtr;
+	u16			vesaBytesPerRow;
+	u16			vesaPixelWidth;
+	u16			vesaPixelHeight;
+	u8			memInfoCount;
+	u8			vesaPixelDepth;
+} __attribute__ ((__packed__));
 
