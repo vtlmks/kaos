@@ -4,7 +4,7 @@
 #include <meminfo.h>
 
 struct __attribute__ ((__packed__)) LoaderInfo {
-	memInfo	*memInfoPtr;
+	MemInfo	*memInfoPtr;
 	u32		*vesaPhysBasePtr;
 	u16		vesaBytesPerRow;
 	u16		vesaPixelWidth;
