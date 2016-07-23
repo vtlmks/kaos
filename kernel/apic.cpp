@@ -53,7 +53,7 @@ u32 currentCount;
 
 
 
-void apicInit() {
+void setupApic() {
 
 	u64 apic = rdmsr(IA32_APIC_BASE_MSR) & 0xfffff100;					// bit 8=Processor is BSP, bit 11=global enable/disable
 

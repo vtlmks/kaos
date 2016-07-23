@@ -1,9 +1,8 @@
 #pragma once
 
 
-struct memInfo {
+struct __attribute__ ((__packed__)) memInfo {
 	u64	from;
 	u64	length;
 	u32	flag;
-	u32	pad;
 };

@@ -6,16 +6,16 @@
 **  All around rusty assembly, but it'll be fine...  mostly...
 */
 
-#include "include\assembler.h"
-#include "include\types.h"
-#include "tty.h"
+#include <assembler.h>
+#include <types.h>
+#include <tty.h>
 #include <loaderinfo.h>
 //#include <intrin.h>
 
 extern "C" void kernelmain(LoaderInfo *info);
 
-void interruptsInit();
-void apicInit();
+void setupInterrupts();
+void setupApic();
 
 void setupPaging(LoaderInfo *info);
 
@@ -30,27 +30,16 @@ void kernelmain(LoaderInfo *info)  {
 	asm("mov %ax, %ss");
 	asm("mov $0x90000, %rsp");
 
-	//(".intel_syntax noprefix");
-//	asm("mov	$0xdeadbeef,%rax;");
+
 //	setupPaging(info);
-	ttyInit(info);
+
+	setupTTY(info);
 	asm("jmp .;");
-	interruptsInit();
-	apicInit();
+	setupInterrupts();
+	setupApic();
 	asm("jmp .;");
 
-//		"cli;"
-//		"mov	%ax,0x10;"
-//		"mov	%ax,%ds;"
-//		"mov	%ax,%es;"
-//		"mov	%ax,%fs;"
-//		"mov	%ax,%gs;"
-//		"mov	%ax,%ss;"
-//		"mov	$80000,%esp;"
-//		"mov	%esp,%ebp;"
-//		//"push	%ebp;"
-//		"sti;"
-//	);
+
 }
 
 // #include <meminfo.h>

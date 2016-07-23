@@ -1,11 +1,11 @@
 
 #include <stdarg.h>
 #include <stdint.h>
-#include <loaderinfo.h>
+#include <types.h>
 
-#include "include\types.h"
-#include "fontLat2Terminus16.h"
-#include "psf.h"
+#include <fontLat2Terminus16.h>
+#include <loaderinfo.h>
+#include <psf.h>
 
 #define	defaultFrontColor	0xfff0a438
 #define	defaultBackColor	0xff0c1420
@@ -49,7 +49,7 @@ void clearScreen() {
 	}
 }
 
-inline void writeChar(int character, Pos *cur) {
+void writeChar(int character, Pos *cur) {
 	u16 fontRowData;
 	for(u8 row = 0; row < psf->height; ++row) {
 		fontRowData = font[(character * psf->charSize) + row];
@@ -63,7 +63,7 @@ inline void writeChar(int character, Pos *cur) {
 	}
 }
 
-inline void advanceCursorX() {
+void advanceCursorX() {
 	++defaultTTY.cursorPos.x;
 	if(defaultTTY.cursorPos.x >= defaultTTY.width) {
 		defaultTTY.cursorPos.x = 0;
@@ -75,7 +75,7 @@ inline void advanceCursorX() {
 	}
 }
 
-inline void newLine() {
+void newLine() {
 	defaultTTY.cursorPos.x = 0;
 	++defaultTTY.cursorPos.y;
 	if(defaultTTY.cursorPos.y >= defaultTTY.height) {
@@ -84,7 +84,7 @@ inline void newLine() {
 	}
 }
 
-inline void printchar(char **str, int c) {
+void printchar(char **str, int c) {
 	if(str) {
 		**str = c;
 		++(*str);
@@ -101,7 +101,7 @@ inline void printchar(char **str, int c) {
 #define PAD_RIGHT	1
 #define PAD_ZERO	2
 
-inline int prints(char **out, const char *string, int width, int pad) {
+int prints(char **out, const char *string, int width, int pad) {
 	int pc = 0, padchar = ' ';
 
 	if(width > 0) {
@@ -269,29 +269,39 @@ u32 strlen(const char *str) {
 	return result;
 }
 
+const char *memType[] = {
+	"type % u",
+	"usable",
+	"reserved",
+	"ACPI data",
+	"ACPI NVS",
+	"unusable",
+	"persistent (type % u)"
+};
+
 /*
  * Initialize TTY
  */
-void ttyInit(LoaderInfo *info) {
-	psf			= (PSF2 *)&fontLat2Terminus16;
-	font		= (u8 *)(psf) + psf->headerSize;
-	frameBuffer	= info->vesaPhysBasePtr;
-
-	defaultTTY.width	= 1280 / psf->width;
-	defaultTTY.height	= 720 / psf->height;
-	defaultTTY.cursorPos = {};
-
+void setupTTY(LoaderInfo *info) {
+	psf					= (PSF2 *)&fontLat2Terminus16;
+	font				= (u8 *)(psf) + psf->headerSize;
+	frameBuffer			= info->vesaPhysBasePtr;
 	memInfo *e820Mem	= info->memInfoPtr;
+
+	defaultTTY.width		= 1280 / psf->width;
+	defaultTTY.height		= 720 / psf->height;
+	defaultTTY.cursorPos.x	= 0;
+	defaultTTY.cursorPos.y	= 0;
 
 	clearScreen();
 
 	kprintf("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
-	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
-	kprintf("\nMemlist\n~~~~~~~\n");
+	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
+	kprintf("BIOS-provided physical RAM map:\n");
 
 //	for(u8 j = 0; j < 200; ++j) {
 	for(u8 i = 0; i < info->memInfoCount; ++i) {
-		kprintf(" From: 0x%016x  Size: 0x%016x Type: %1d\n", e820Mem[i].from, e820Mem[i].length, e820Mem[i].flag);
+		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Mem[i].from, e820Mem[i].length, memType[e820Mem[i].flag]);
 	}
 //	}
 }

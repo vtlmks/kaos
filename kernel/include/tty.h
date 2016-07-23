@@ -2,5 +2,5 @@
 
 #include <loaderinfo.h>
 
-void ttyInit(LoaderInfo *info);
+void setupTTY(LoaderInfo *info);
 

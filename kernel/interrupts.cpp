@@ -27,7 +27,7 @@ void interruptTest() {
 	asm("jmp .;");
 }
 
-void interruptsInit() {
+void setupInterrupts() {
 	IDT.Limit = sizeof(IDTDescriptor)*256-1;
 	IDT.BaseAddress = (u64)&IDTTable;
 

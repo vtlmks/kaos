@@ -53,10 +53,14 @@ EFER:
 
 CR_4:
 .PAE	Equ	5
+.OSFXSR	Equ	9
+.OSXMMEXCPT	Equ	10
 
 CR_0:
-.PG	Equ	31
 .PE	Equ	0
+.MP	Equ	1
+.EM	Equ	2
+.PG	Equ	31
 
 PT:
 .P	Equ	0	; Present
@@ -98,7 +102,6 @@ PD:
 .lengthLow	ResD	1
 .lengthHigh	ResD	1
 .type	ResD	1
-.pad	ResD	1	; ACPI 3.0 makes the struct 24 bytes long
 .size	endstruc
 
 	[Bits 16]
@@ -142,13 +145,14 @@ Start	Cld
 	Mov	cr0, eax
 	;
 	Jmp	GDT32.code:protectedMode
-	;
+
+; ==[ enableSSE ]=======================================================================[ 16bit ]==
 enableSSE	Mov	eax, cr0
 	And	ax, 0xfffb	;clear coprocessor emulation CR0.EM
-	Or	ax, 0x2	;set coprocessor monitoring  CR0.MP
+	Or	ax, 1 << CR_0.MP	;set coprocessor monitoring  CR0.MP
 	Mov	cr0, eax
 	Mov	eax, cr4
-	Or	ax, 3 << 9	;set CR4.OSFXSR and CR4.OSXMMEXCPT at the same time
+	Or	ax, 1 << CR_4.OSFXSR | 1 << CR_4.OSXMMEXCPT	;set CR4.OSFXSR and CR4.OSXMMEXCPT at the same time
 	Mov	cr4, eax
 	Ret
 
@@ -349,7 +353,7 @@ resetFloppy	Mov	ah, 0
 ;
 getMemorymap	Mov	eax, 0xe820	; Request memory areas
 	XOr	ebx, ebx
-	Mov	ecx, 24	; Size of request, always request 24 bytes even if we most problably never will see that number return
+	Mov	ecx, 20
 	Mov	edx, "PAMS"	; SMAP in little endian
 	Lea	di, [e820Buffer]	; Buffer to fill with data
 	Int	0x15
@@ -369,11 +373,11 @@ getMemorymap	Mov	eax, 0xe820	; Request memory areas
 	mov dword	[loaderInfo + loaderInformation.memInfoPtr], e820Buffer
 
 .nextEntry	Jcxz	.skipEntry	; Skip if zero length (perhaps should check if less than 20 bytes as well)
-	Lea	di, [di + 24]	; Change bufferpointer for next request
+	Lea	di, [di + 20]	; Change bufferpointer for next request
 	Inc byte	[loaderInfo + loaderInformation.memInfoCount]
 
 .skipEntry	Mov	eax, 0xe820
-	Mov	ecx, 24	; Always request 24 bytes, even if we only get 20 back.
+	Mov	ecx, 20
 	Mov	edx, "PAMS"
 	Int	0x15
 	Jc	.done
