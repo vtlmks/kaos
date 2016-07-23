@@ -9,7 +9,7 @@ struct LoaderInfo {
 	u16			vesaBytesPerRow;
 	u16			vesaPixelWidth;
 	u16			vesaPixelHeight;
-	u8			memInfoCount;
+	u8			e820Count;
 	u8			vesaPixelDepth;
 } __attribute__ ((__packed__));
 

@@ -300,7 +300,7 @@ void setupTTY(LoaderInfo *info) {
 	kprintf("BIOS-provided physical RAM map:\n");
 
 //	for(u8 j = 0; j < 200; ++j) {
-	for(u8 i = 0; i < info->memInfoCount; ++i) {
+	for(u8 i = 0; i < info->e820Count; ++i) {
 		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Mem[i].addr, e820Mem[i].size, memType[e820Mem[i].type]);
 	}
 //	}
