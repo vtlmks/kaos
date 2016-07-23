@@ -33,6 +33,8 @@ void kernelmain(LoaderInfo *info)  {
 
 //	setupPaging(info);
 
+	e820(info);
+
 	setupTTY(info);
 	asm("jmp .;");
 	setupInterrupts();
