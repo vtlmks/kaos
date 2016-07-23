@@ -39,9 +39,16 @@
 ;
 KernelOffset	Equ	0x10000	; Where to load the kernel
 
+;
+; screen mode we will be looking for, we know this exist on qemu and bochs,
+; and we've added it to the virtualbox configuration that we test with
+;
 ScreenWidth	Equ	1280
 ScreenHeight	Equ	720
-ScreenBitsPerPixel Equ	32
+ScreenBitsPerPixel	Equ	32
+
+;
+MSR_EFER	Equ	0xc0000080
 
 ; Defines for Memoryprobe
 ;
@@ -161,9 +168,9 @@ setVesamode	Mov	ax, 0x4f00
 	Lea	di, [vesaInfo]
 	int	0x10
 
-	Mov	ax, [vesaInfo + vbeInfo.modeListPointer]
+	Mov	ax, [vesaInfo + vbeInfo.modeListPtr + farPtr.offset]
 	Mov	[.offset], ax
-	Mov	ax, [vesaInfo + vbeInfo.modeListPointer + 2]
+	Mov	ax, [vesaInfo + vbeInfo.modeListPtr + farPtr.segment]
 	Mov	[.segment], ax
 	Mov	fs, ax
 	Mov	si, [.offset]
@@ -187,18 +194,18 @@ setVesamode	Mov	ax, 0x4f00
 	Jne	.error
 
 	Mov	ax, ScreenWidth
-	Cmp	ax, [vesaMode + vbeMode.width]
+	Cmp	ax, [vesaMode + vbeModeInfo.screenWidth]
 	Jne	.nextMode
 
 	Mov	ax, ScreenHeight
-	Cmp	ax, [vesaMode + vbeMode.height]
+	Cmp	ax, [vesaMode + vbeModeInfo.screenHeight]
 	Jne	.nextMode
 
 	Mov	al, ScreenBitsPerPixel
-	Cmp	al, [vesaMode + vbeMode.bpp]
+	Cmp	al, [vesaMode + vbeModeInfo.bpp]
 	Jne	.nextMode
 
-	Bt word	[vesaMode + vbeMode.attributes], 7	; Check if it supports LFB.
+	Bt word	[vesaMode + vbeModeInfo.attributes], 7	; Check if it supports LFB.
 	Jnc	.nextMode
 
 	; We've got a mode that we're happy about, now set it..
@@ -212,11 +219,11 @@ setVesamode	Mov	ax, 0x4f00
 	Cmp	ax, 0x4f
 	Jne	.error
 
-	; Save data for LM
+	; Save data for the Kernel
 	;
-	Mov	eax, [vesaMode + vbeMode.physicalBase]
+	Mov	eax, [vesaMode + vbeModeInfo.lfbPtr]
 	Mov dword	[loaderInfo + loaderInformation.vesaPhysBasePtr], eax
-	Mov word	ax, [vesaMode + vbeMode.linearBytesPerRow]
+	Mov word	ax, [vesaMode + vbeModeInfo.linearBytesPerRow]
 	Mov word	[loaderInfo + loaderInformation.vesaBytesPerRow], ax
 	Mov word	[loaderInfo + loaderInformation.vesaPixelWidth], ScreenWidth
 	Mov word	[loaderInfo + loaderInformation.vesaPixelHeight], ScreenHeight
@@ -277,61 +284,16 @@ enableA20:	In	al, 0x92	; 0x92 (System Control Port A)
 	Out	0x92, al
 .done	Ret
 
-; ==[ clearScreen ]=====================================================================[ 16bit ]==
-clearScreen	PushAD
-	Push	es
-	Mov	ax, 0xb800
-	Mov	es, ax
-	Mov	ax, 0x1020
-	Mov	cx, 2000
-	XOr	di, di
-	Rep Stosw
-	Mov word	[cursorY], 0
-	Mov word	[cursorX], 0
-	Pop	es
-	PopAD
-	Ret
-
-; ==[ printString ]=====================================================================[ 16bit ]==
-printString	PushAD
-	Push	es
-
-	Mov	ax, 0xb800
-	Mov	es, ax
-
-	Mov	ah, 0x13
-.nextChar	Lodsb
-
-	Cmp	al, 0xa
-	Jnz	.noNewLine
-	Add word	[cursorY], 160
-	Mov word	[cursorX], 0
-	Jmp	.nextChar
-
-.noNewLine	Cmp	al, 0x0
-	Jz	.exit
-
-	Mov	di, [cursorY]
-	Add	di, [cursorX]
-
-	Mov	[es:di], ax
-	Add word	[cursorX], 2
-	Jmp	.nextChar
-
-.exit	Pop	es
-	PopAD
-	Ret
-
 ; ==[ loadKernel ]======================================================================[ 16bit ]==
 loadKernel	PushAD
 	Push	es
 	Call	resetFloppy
 
-	Mov	ax, KernelOffset>>4 ; This will be a temporary offset where we just load the kernel, we'll then move it to end of memory somewhere to be forgotten..
+	Mov	ax, KernelOffset>>4	; This will be a temporary offset where we just load the kernel, we'll then move it to end of memory somewhere to be forgotten..
 	Mov	es, ax
 	XOr	bx, bx	; Buffer offset
 	Mov	ah, 2	; Read sector
-	Mov	al, 50	; Number of sectors - TODO(peter): We have to fix this to the actual length
+	Mov	al, 50	; Number of sectors - TODO(peter): We have to fix this; obtain the actual length
 	Mov	ch, 0	; Low eight bits cylinder
 	Mov	cl, 18	; Sector number 1-63 (bits 6-7 hd only)
 	Mov	dh, 0	; Head
@@ -366,8 +328,8 @@ getMemorymap	Mov	eax, 0xe820	; Request memory areas
 	Test	ebx, ebx	; Fail if this is the only entry!
 	Jz	.failed	;
 
-	Lea	si, [e820valid]
-	Call	printString
+;	Lea	si, [e820valid]
+;	Call	printString
 
 	mov byte	[loaderInfo + loaderInformation.memInfoCount], 1
 	mov dword	[loaderInfo + loaderInformation.memInfoPtr], e820Buffer
@@ -386,13 +348,13 @@ getMemorymap	Mov	eax, 0xe820	; Request memory areas
 	Jz	.done
 	Jmp	.nextEntry
 
-.done	Lea	si, [e820done]
-	Call	printString
-	ret
+.done	ret
+	;Lea	si, [e820done]
+	;Call	printString
 
-.failed	Lea	si, [e820failed]
-	Call	printString
-	ret
+.failed	ret
+;	Lea	si, [e820failed]
+;	Call	printString
 
 ; =================================================================================================
 	[Bits 32]
@@ -406,31 +368,35 @@ protectedMode	Cli
 	Mov	gs, ax
 	Mov	ss, ax
 	Mov	esp, 0x90000
-
+	;
 	; Prepare to enter Long Mode
-
+	;
+	; Technically we don't need to enter protected mode before
+	; entering LongMode but some things are easier to do in
+	; protected mode, more things will be added here in the future.
+	;
 	Mov	eax, cr4
-	Or	eax, 1 << CR_4.PAE	; enable PAE
+	Or	eax, 1 << CR_4.PAE
 	mov	cr4, eax
-
+	;
 	Call	setupPaging
-
-	Mov	ecx, 0xc0000080	; EFER msr
+	;
+	Mov	ecx, MSR_EFER	; EFER msr
 	Rdmsr
-	Or	eax, 1 << EFER.LME	; LM Enable-bit
+	Or	eax, 1 << EFER.LME	; Long Mode Enabled
 	Wrmsr
-
+	;
 	Mov	eax, cr0
-	Or	eax, 1 << CR_0.PG	; Enable paging
+	Or	eax, 1 << CR_0.PG	; Paging Enabled
 	Mov	cr0, eax
-
-	; Now we are in compatibility mode, one more thing before entering real 64bit mode
-
+	;
+	; Now we are in compatibility mode
+	;
 	Lgdt	[GDT64.pointer]	; temporary 64bit GDT to get the kernel running, more of this in C layer
-
+	;
 	Lea	edi, [loaderInfo]	; Information that we want to send to the 64-bit side.
 	Jmp	GDT64.code:KernelOffset	; long jump to x64 from here.
-
+	;
 	Cli	; if we were to ever get back
 	Hlt	; for debugging purposes
 
@@ -501,15 +467,10 @@ GDT64:
 .pointer	Dw	$ - GDT64 - 1		; GDT-Pointer
 	Dq	GDT64
 
-; ==[ Strings ]====================================================================================
-e820done	Db	"[BIOS] - E820 parsed..", 0xa, 0
-e820failed	Db	"[BIOS] - E820 parsing failed..", 0xa, 0
-e820valid	Db	"[BIOS] - E820 valid..", 0xa, 0
-
 	[Section .bss]
 ; ==[ VESA related ]===============================================================================
 vesaInfo	resb	vbeInfo.size
-vesaMode	resb	vbeMode.size
+vesaMode	resb	vbeModeInfo.size
 
 ; ==[ Loader related ]=============================================================================
 loaderInfo	resb	loaderInformation.size
@@ -517,4 +478,53 @@ loaderInfo	resb	loaderInformation.size
 ; ==[ Screen related ]=============================================================================
 cursorY	resw	1
 cursorX	resw	1
+
+; OLD cruft, might be usable for debugging, but ... if so, enable
+
+;	[section .text]
+;
+; ==[ clearScreen ]=====================================================================[ 16bit ]==
+;clearScreen	PushAD
+;	Push	es
+;	Mov	ax, 0xb800
+;	Mov	es, ax
+;	Mov	ax, 0x1020
+;	Mov	cx, 2000
+;	XOr	di, di
+;	Rep Stosw
+;	Mov word	[cursorY], 0
+;	Mov word	[cursorX], 0
+;	Pop	es
+;	PopAD
+;	Ret
+
+; ==[ printString ]=====================================================================[ 16bit ]==
+;printString	PushAD
+;	Push	es
+;
+;	Mov	ax, 0xb800
+;	Mov	es, ax
+;
+;	Mov	ah, 0x13
+;.nextChar	Lodsb
+;
+;	Cmp	al, 0xa
+;	Jnz	.noNewLine
+;	Add word	[cursorY], 160
+;	Mov word	[cursorX], 0
+;	Jmp	.nextChar
+;
+;.noNewLine	Cmp	al, 0x0
+;	Jz	.exit
+;
+;	Mov	di, [cursorY]
+;	Add	di, [cursorX]
+;
+;	Mov	[es:di], ax
+;	Add word	[cursorX], 2
+;	Jmp	.nextChar
+;
+;.exit	Pop	es
+;	PopAD
+;	Ret
 

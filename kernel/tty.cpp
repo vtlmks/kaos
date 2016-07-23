@@ -269,16 +269,6 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-const char *memType[] = {
-	"type % u",
-	"usable",
-	"reserved",
-	"ACPI data",
-	"ACPI NVS",
-	"unusable",
-	"persistent (type % u)"
-};
-
 /*
  * Initialize TTY
  */
@@ -286,8 +276,6 @@ void setupTTY(LoaderInfo *info) {
 	psf					= (PSF2 *)&fontLat2Terminus16;
 	font				= (u8 *)(psf) + psf->headerSize;
 	frameBuffer			= info->vesaPhysBasePtr;
-	e820Entry *e820Mem	= info->e820Ptr;
-
 	defaultTTY.width		= 1280 / psf->width;
 	defaultTTY.height		= 720 / psf->height;
 	defaultTTY.cursorPos.x	= 0;
@@ -297,11 +285,5 @@ void setupTTY(LoaderInfo *info) {
 
 	kprintf("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
 	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
-	kprintf("BIOS-provided physical RAM map:\n");
 
-//	for(u8 j = 0; j < 200; ++j) {
-	for(u8 i = 0; i < info->e820Count; ++i) {
-		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Mem[i].addr, e820Mem[i].size, memType[e820Mem[i].type]);
-	}
-//	}
 }

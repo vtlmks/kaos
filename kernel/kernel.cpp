@@ -32,12 +32,12 @@ void kernelmain(LoaderInfo *info)  {
 	asm("mov %ax, %ss");
 	asm("mov $0x90000, %rsp");
 
+	setupTTY(info);		// first, so that we can output text to screen et.c
 
 //	setupPaging(info);
 
 	e820(info);
 
-	setupTTY(info);
 	asm("jmp .;");
 	setupInterrupts();
 	setupApic();
