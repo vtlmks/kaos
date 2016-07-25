@@ -58,25 +58,25 @@ void setupApic() {
 	u64 apic = rdmsr(IA32_APIC_BASE_MSR) & 0xfffff100;					// bit 8=Processor is BSP, bit 11=global enable/disable
 
 	// reset to initial state
-	((u64*) (apic+APIC_DFR))[0] = 0x0FFFFFFFF;
-	u32 ldr = ((u64*) (apic+APIC_LDR))[0];
+	((u32*) (apic+APIC_DFR))[0] = 0x0FFFFFFFF;
+	u32 ldr = ((u32*) (apic+APIC_LDR))[0];
 	ldr &= 0x00FFFFFF;
 	ldr |= 1;
-	((u64*) (apic+APIC_LDR))[0] = ldr;
-	((u64*) (apic+APIC_LVT_TIMER_REGISTER))[0] = APIC_DISABLE;
-	((u64*) (apic+APIC_LVT_PERF))[0] = APIC_NMI;
-	((u64*) (apic+APIC_LVT_LINT0))[0] = APIC_DISABLE;
-	((u64*) (apic+APIC_LVT_LINT1))[0] = APIC_DISABLE;
-	((u64*) (apic+APIC_TASK_PRIORITY_REGISTER))[0] = 0;
+	((u32*) (apic+APIC_LDR))[0] = ldr;
+	((u32*) (apic+APIC_LVT_TIMER_REGISTER))[0] = APIC_DISABLE;
+	((u32*) (apic+APIC_LVT_PERF))[0] = APIC_NMI;
+	((u32*) (apic+APIC_LVT_LINT0))[0] = APIC_DISABLE;
+	((u32*) (apic+APIC_LVT_LINT1))[0] = APIC_DISABLE;
+	((u32*) (apic+APIC_TASK_PRIORITY_REGISTER))[0] = 0;
 
 	// enable APIC
 	apic |= APIC_GLOBAL_ENABLE_FLAG;
 	wrmsr(IA32_APIC_BASE_MSR, apic);
 
 
-	((u64*) (apic+APIC_SPURIOUS_INTERRUPT_VECTOR_REGISTER))[0]=32 + 7 + APIC_SW_ENABLE;			// SIV = IRQ7
-	((u64*) (apic+APIC_LVT_TIMER_REGISTER))[0] = 32 + 0;										// LWT = IRQ0
-	((u64*) (apic+APIC_DIVIDE_CONFIGURATION_REGISTER))[0] = 3;									// Divide value = 16
+	((u32*) (apic+APIC_SPURIOUS_INTERRUPT_VECTOR_REGISTER))[0]=32 + 7 + APIC_SW_ENABLE;			// SIV = IRQ7
+	((u32*) (apic+APIC_LVT_TIMER_REGISTER))[0] = 32 + 0;										// LWT = IRQ0
+	((u32*) (apic+APIC_DIVIDE_CONFIGURATION_REGISTER))[0] = 3;									// Divide value = 16
 
 
 	// this could alternatively be done with CPUID(0x15) instruction 
@@ -100,14 +100,14 @@ void setupApic() {
 	oneshot |= 1;									// enable PIT channel 2 gate
 	out(KB8042_DATAPORT2, oneshot);
 
-	((u64*) (apic+APIC_INITIAL_COUNT_REGISTER))[0] = 0xffffffff;		// start from -1
+	((u32*) (apic+APIC_INITIAL_COUNT_REGISTER))[0] = 0xffffffff;		// start from -1
 
 
 	while((in(KB8042_DATAPORT2) & 0x20) != 0)							// wait for PIT
 
-	((u64*) (apic+APIC_LVT_TIMER_REGISTER))[0] = APIC_DISABLE;			// stop
+	((u32*) (apic+APIC_LVT_TIMER_REGISTER))[0] = APIC_DISABLE;			// stop
 
-	currentCount = ((u64*) (apic+APIC_CURRENT_COUNT_REGISTER))[0];
+	currentCount = ((u32*) (apic+APIC_CURRENT_COUNT_REGISTER))[0];
 	// 0xfee01003
 
 	//currentCount *=16;
