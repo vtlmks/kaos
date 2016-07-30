@@ -17,15 +17,14 @@
 #define PSF2_STARTSEQ   0xFE
 
 struct PSF2 {
-	uint8_t	magic[4];
+	uint8_t		magic[4];
 	uint32_t	version;
 	uint32_t	headerSize;		/* offset of bitmaps in file */
 	uint32_t	flags;
 	uint32_t	length;			/* number of glyphs */
-	uint32_t	charSize;		/* number of bytes for each character */
+	uint32_t	charSize;		/* number of bytes for each character; charsize = height * ((width + 7) / 8) */
 	uint32_t	height;
 	uint32_t	width;			/* max dimensions of glyphs */
-	/* charsize = height * ((width + 7) / 8) */
 };
 
 

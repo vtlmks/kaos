@@ -4,7 +4,7 @@
 #include <e820.h>
 
 struct LoaderInfo {
-	e820Entry	*e820Ptr;
+	e820entry	*e820Ptr;
 	u32			*vesaPhysBasePtr;
 	u16			vesaBytesPerRow;
 	u16			vesaPixelWidth;

@@ -17,26 +17,53 @@ extern "C" void kernelmain(LoaderInfo *info);
 void setupInterrupts();
 void setupApic();
 
-void e820(LoaderInfo *info);
+void setupE820(LoaderInfo *info);
 
 void setupPaging(LoaderInfo *info);
 
+int kprintf(const char *formatString, ...);
+
+
+// Magic to get a string from a defined value
+#define STR(x) #x
+#define STRSTR(x) STR(x)
+
+#define KERNEL_GIT_VERSION STRSTR(KERNEL_GIT_TAG)
+
+#define	_kernelName				"kaOs"
+
+// major.minor.patch-gitversion
+#define	_kernelVersionFormat	"%d.%d.%d-%s"
+
+#define	_kernelVersionMajor		0
+#define	_kernelVersionMinor		0
+#define	_kernelVersionPatch		0
+
+#define	_kernelBuildTime		__TIME__
+#define	_kernelBuildDate		__DATE__
+#define	_kernelArchitecture		"x86_64"
+
 void kernelmain(LoaderInfo *info) __attribute__((section(".kernelmain")));
 void kernelmain(LoaderInfo *info)  {
-
-	asm("mov $0x10, %ax");
+	asm("mov $0x10, %ax");		// fix 64bit selectors
 	asm("mov %ax, %ds");
 	asm("mov %ax, %es");
 	asm("mov %ax, %fs");
 	asm("mov %ax, %gs");
 	asm("mov %ax, %ss");
-	asm("mov $0x90000, %rsp");
+	asm("mov $0x90000, %rsp");	// temporary stack
 
-	setupTTY(info);		// first, so that we can output text to screen et.c
+	setupTTY(info);				// first, so that we can output text to screen et.c
+
+	kprintf(" %s ", _kernelName);
+	kprintf(_kernelVersionFormat, _kernelVersionMajor, _kernelVersionMinor, _kernelVersionPatch, KERNEL_GIT_VERSION);
+	kprintf(" %s %s", _kernelBuildDate, _kernelBuildTime);
+	kprintf("\n\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
+
 
 //	setupPaging(info);
 
-	e820(info);
+	setupE820(info);
 
 	asm("jmp .;");
 	setupInterrupts();
@@ -50,14 +77,13 @@ void kernelmain(LoaderInfo *info)  {
 
 
 // PML4T		Equ	0x90000	; 512Gb per entry
-// PDPT		Equ	0x91000	;   1Gb per entry
+// PDPT			Equ	0x91000	;   1Gb per entry
 // PDT			Equ	0x92000	;   2Mb per entry
 // PT_00000000	Equ	0x94000	;   4Kb per entry
-u64 *PML4T	= (u64*)0x100000;
-u64 *pdpt	= (u64*)0x101000;
+u64 *PML4T		= (u64*)0x100000;
+u64 *pdpt		= (u64*)0x101000;
 
 u64 *kernelPD	= (u64 *)0x101000;
-
 
 //void setupPaging(LoaderInfo *info) {
 

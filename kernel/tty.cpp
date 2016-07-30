@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include <types.h>
 
-#include <fontLat2Terminus16.h>
+//#include <fontLat2Terminus16.h>
+#include <moSoul.h>
 #include <loaderinfo.h>
 #include <psf.h>
 
@@ -49,10 +50,30 @@ void clearScreen() {
 	}
 }
 
+/*
+ * Initialize TTY
+ */
+void setupTTY(LoaderInfo *info) {
+	psf						= (PSF2 *)&moSoul;
+	font					= (u8 *)(psf) + psf->headerSize;
+	frameBuffer				= info->vesaPhysBasePtr;
+	defaultTTY.width		= 1280 / psf->width;
+	defaultTTY.height		= 720 / psf->height;
+	defaultTTY.cursorPos.x	= 0;
+	defaultTTY.cursorPos.y	= 0;
+
+	clearScreen();
+}
+
+
 void writeChar(int character, Pos *cur) {
 	u16 fontRowData;
 	for(u8 row = 0; row < psf->height; ++row) {
-		fontRowData = font[(character * psf->charSize) + row];
+		fontRowData = font[(character * psf->charSize) + 0 + row];
+/*		if(psf->charSize > 1) {
+			fontRowData |= font[(character * psf->charSize) + 1 + row * 2] << 8;
+		}
+*/
 		if(fontRowData) {
 			for(u8 pixel = 0; pixel < psf->width; ++pixel) {
 				if(fontRowData & (1 << pixel)) {
@@ -269,21 +290,30 @@ u32 strlen(const char *str) {
 	return result;
 }
 
-/*
- * Initialize TTY
- */
-void setupTTY(LoaderInfo *info) {
-	psf					= (PSF2 *)&fontLat2Terminus16;
-	font				= (u8 *)(psf) + psf->headerSize;
-	frameBuffer			= info->vesaPhysBasePtr;
-	defaultTTY.width		= 1280 / psf->width;
-	defaultTTY.height		= 720 / psf->height;
-	defaultTTY.cursorPos.x	= 0;
-	defaultTTY.cursorPos.y	= 0;
+// size is 0, 1, 2, 3 - 8, 16, 32, 64
+void dumpMem(u64 offset, u16 rows, u8 size = 3) {
 
-	clearScreen();
+	for(; rows > 0; --rows) {
+	}
 
-	kprintf("KAOS v0.1.0 - Created by Mindkiller Systems in 1916.\n");
-	kprintf("\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
+	switch(size) {
+		case 0: {
+			u32	a = *(u32*)offset + 0;
+			u32 b = *(u32*)offset + 1;
+			u32	c = *(u32*)offset + 2;
+			u32	d = *(u32*)offset + 3;
+			u8	ascii[16];
 
+			kprintf("%x: %x %x %x %x  %8s\n", a, b, c, d, ascii);
+		} break;
+
+		case 1: {
+		} break;
+
+		case 2: {
+		} break;
+
+		case 3: {
+		} break;
+	}
 }
