@@ -27,22 +27,25 @@ void setupE820(LoaderInfo *info) {
 
 	// copy all info->e820Ptr to e820Map->map[]
 
-
+	// TODO(peter): Do this with memcopy instead.
 	for(u8 i = 0; i < e820Map->mapCount; ++i) {
 		e820Map->map[i].addr = info->e820Ptr[i].addr;
 		e820Map->map[i].size = info->e820Ptr[i].size;
 		e820Map->map[i].type = info->e820Ptr[i].type;
 	}
 
+	// TODO(peter): sort e820map, redo the mapping so we don't have any overlaps in the list, and that highest map-type is used for all areas.
+	// TODO(peter): Make it possible to add protected areas to the mapping before sorting and overlap pruning.
+
+
+
 	kprintf("BIOS-provided physical RAM map:\n");
-	for(u8 j = 0; j < 200; ++j) {
 	for(u8 i = 0; i < e820Map->mapCount; ++i) {
 		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Map->map[i].addr, e820Map->map[i].size, memType[e820Map->map[i].type]);
 	}
-	}
 
 	u8 biosMemCount = info->e820Count;
-	u8 newMemCount = 0;
+//	u8 newMemCount = 0;
 
 
 

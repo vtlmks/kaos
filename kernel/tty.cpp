@@ -85,13 +85,11 @@ void setupTTY(LoaderInfo *info) {
 
 
 void writeChar(int character, Pos *cur) {
+	// NOTE(peter): add support for character sets with characters wider than 8 pixels, this was overlooked first time through.
+
 	u16 fontRowData;
 	for(u8 row = 0; row < psf->height; ++row) {
 		fontRowData = font[(character * psf->charSize) + 0 + row];
-/*		if(psf->charSize > 1) {
-			fontRowData |= font[(character * psf->charSize) + 1 + row * 2] << 8;
-		}
-*/
 		if(fontRowData) {
 			for(u8 pixel = 0; pixel < psf->width; ++pixel) {
 				if(fontRowData & (1 << pixel)) {
