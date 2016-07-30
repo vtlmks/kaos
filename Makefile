@@ -29,17 +29,17 @@ EMUARGS  = -fda floppy.img -monitor stdio -vga std
 all: kernel.bin
 
 kernel.bin: $(KERNEL_OBJS) $(KERNEL_ASMOBJS)
-	$(CXX) $(LDFLAGS) $(KERNEL_OBJS) -o kernel/kernel.bin
+	@$(CXX) $(LDFLAGS) $(KERNEL_OBJS) -o kernel/kernel.bin
 
 floppy.img: kernel.bin
-	bootimage bootblock.bin loader.bin kernel/kernel.bin
+	@bootimage bootblock.bin loader.bin kernel/kernel.bin
 
 run: floppy.img
-	$(EMU) $(EMUARGS)
+	@$(EMU) $(EMUARGS)
 
 %.bin: %.asm
-	$(AS) $(ASFLAGS) $< -o $@
+	@$(AS) $(ASFLAGS) $< -o $@
 
 %.o: %.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@
+	@$(CXX) $(CFLAGS) -c $< -o $@
 

@@ -35,8 +35,10 @@ void setupE820(LoaderInfo *info) {
 	}
 
 	kprintf("BIOS-provided physical RAM map:\n");
+	for(u8 j = 0; j < 200; ++j) {
 	for(u8 i = 0; i < e820Map->mapCount; ++i) {
 		kprintf(" BIOS-e820: %016x - 0x%016x (%s)\n", e820Map->map[i].addr, e820Map->map[i].size, memType[e820Map->map[i].type]);
+	}
 	}
 
 	u8 biosMemCount = info->e820Count;

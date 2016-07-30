@@ -37,17 +37,30 @@ TTY		defaultTTY;
 void scrollOneUp() {
 	u16 rows = defaultScreen.height - psf->height;
 
-	for(u32 i = 0; i < defaultScreen.width * rows; ++i) {
-		frameBuffer[i] = frameBuffer[i + (defaultScreen.width * psf->height)];
+	u64 fill = defaultBackColor;
+	fill = fill << 32 | defaultBackColor;
+
+	u64 *fb = (u64*)frameBuffer;
+	u64 *fb2 = (u64*)frameBuffer + (defaultScreen.width * psf->height / 2);
+
+	for(u32 i = 0; i < (defaultScreen.width * rows) / 2; ++i) {
+		*fb++ = *fb2++;
 	}
-	for(u32 i = 0; i < defaultScreen.width * psf->height; ++i) {
-		frameBuffer[(rows * defaultScreen.width) + i] = defaultBackColor;
+
+	// no need to reinitialize fb as the pointer should already be set to correct position here		was before:	fb = (u64*)frameBuffer + ((rows * defaultScreen.width) / 2);
+	for(u32 i = 0; i < (defaultScreen.width * psf->height) / 2; ++i) {
+		*fb++ = fill;
 	}
 }
 
 void clearScreen() {
-	for(u32 i = 0; i < defaultScreen.width * defaultScreen.height; ++i) {
-		frameBuffer[i] = defaultBackColor;
+	u64 *fb = (u64*)frameBuffer;
+
+	u64 fill = defaultBackColor;
+	fill = fill << 32 | defaultBackColor;
+
+	for(u32 i = 0; i < (defaultScreen.width * defaultScreen.height) / 2; ++i) {
+		*fb++ = fill;
 	}
 }
 
