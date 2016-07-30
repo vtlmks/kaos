@@ -11,6 +11,14 @@
 #define	defaultFrontColor	0xfff0a438
 #define	defaultBackColor	0xff0c1420
 
+// TODO(peter): Make it possible to use different colors
+//
+//	Black
+//	blue, green, cyan, red, magenta, brown
+//	light grey, dark grey
+//	lightblue, -green, -cyan, -red, -magenta, -brown
+//	white
+
 struct Pos {
 	u8	x;
 	u8	y;
@@ -43,12 +51,12 @@ void scrollOneUp() {
 	u64 *fb = (u64*)frameBuffer;
 	u64 *fb2 = (u64*)frameBuffer + (defaultScreen.width * psf->height / 2);
 
-	for(u32 i = 0; i < (defaultScreen.width * rows) / 2; ++i) {
+	for(u32 i = 0; i < u32((defaultScreen.width * rows) / 2); ++i) {
 		*fb++ = *fb2++;
 	}
 
 	// no need to reinitialize fb as the pointer should already be set to correct position here		was before:	fb = (u64*)frameBuffer + ((rows * defaultScreen.width) / 2);
-	for(u32 i = 0; i < (defaultScreen.width * psf->height) / 2; ++i) {
+	for(u32 i = 0; i < u32((defaultScreen.width * psf->height) / 2); ++i) {
 		*fb++ = fill;
 	}
 }
@@ -59,7 +67,7 @@ void clearScreen() {
 	u64 fill = defaultBackColor;
 	fill = fill << 32 | defaultBackColor;
 
-	for(u32 i = 0; i < (defaultScreen.width * defaultScreen.height) / 2; ++i) {
+	for(u32 i = 0; i < u32((defaultScreen.width * defaultScreen.height) / 2); ++i) {
 		*fb++ = fill;
 	}
 }

@@ -5,7 +5,7 @@ AS = nasm
 
 ASFLAGS = -fbin
 
-CFLAGS  = -O2
+CFLAGS  = -Os
 CFLAGS += -ffreestanding
 CFLAGS += -Wall -Wextra
 CFLAGS += -fno-exceptions -fno-rtti
@@ -42,4 +42,9 @@ run: floppy.img
 
 %.o: %.cpp
 	@$(CXX) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm kernel/*.o
+	rm *.o
+	rm *.bin
 
