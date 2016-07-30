@@ -82,7 +82,7 @@ void writeChar(int character, Pos *cur) {
 		if(fontRowData) {
 			for(u8 pixel = 0; pixel < psf->width; ++pixel) {
 				if(fontRowData & (1 << pixel)) {
-					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * defaultScreen.height) + (psf->width - pixel)] = defaultFrontColor;
+					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * defaultScreen.width) + (psf->width - pixel)] = defaultFrontColor;
 				}
 			}
 		}
