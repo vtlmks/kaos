@@ -22,30 +22,31 @@ struct Screen {
 };
 
 struct TTY {
-	u16	width;
-	u16	height;
-	Pos	cursorPos;
+	u16	charWidth;
+	u16	charHeight;
+	Pos	curPos;
 };
 
 PSF2	*psf;
 u8		*font;
 u32		*frameBuffer;
 
+Screen	defaultScreen;
 TTY		defaultTTY;
 
 void scrollOneUp() {
-	u16 rows = 720 - psf->height;
+	u16 rows = defaultScreen.height - psf->height;
 
-	for(u32 i = 0; i < 1280 * rows; ++i) {
-		frameBuffer[i] = frameBuffer[i + (1280 * psf->height)];
+	for(u32 i = 0; i < defaultScreen.width * rows; ++i) {
+		frameBuffer[i] = frameBuffer[i + (defaultScreen.width * psf->height)];
 	}
-	for(u32 i = 0; i < 1280 * psf->height; ++i) {
-		frameBuffer[(rows * 1280) + i] = defaultBackColor;
+	for(u32 i = 0; i < defaultScreen.width * psf->height; ++i) {
+		frameBuffer[(rows * defaultScreen.width) + i] = defaultBackColor;
 	}
 }
 
 void clearScreen() {
-	for(u32 i = 0; i < 1280 * 720; ++i) {
+	for(u32 i = 0; i < defaultScreen.width * defaultScreen.height; ++i) {
 		frameBuffer[i] = defaultBackColor;
 	}
 }
@@ -57,10 +58,14 @@ void setupTTY(LoaderInfo *info) {
 	psf						= (PSF2 *)&moSoul;
 	font					= (u8 *)(psf) + psf->headerSize;
 	frameBuffer				= info->vesaPhysBasePtr;
-	defaultTTY.width		= 1280 / psf->width;
-	defaultTTY.height		= 720 / psf->height;
-	defaultTTY.cursorPos.x	= 0;
-	defaultTTY.cursorPos.y	= 0;
+
+	defaultScreen.width		= info->vesaPixelWidth;
+	defaultScreen.height	= info->vesaPixelHeight;
+
+	defaultTTY.charWidth	= info->vesaPixelWidth / psf->width;
+	defaultTTY.charHeight	= info->vesaPixelHeight / psf->height;
+	defaultTTY.curPos.x		= 0;
+	defaultTTY.curPos.y		= 0;
 
 	clearScreen();
 }
@@ -77,7 +82,7 @@ void writeChar(int character, Pos *cur) {
 		if(fontRowData) {
 			for(u8 pixel = 0; pixel < psf->width; ++pixel) {
 				if(fontRowData & (1 << pixel)) {
-					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * 1280) + (psf->width - pixel)] = defaultFrontColor;
+					frameBuffer[(cur->x * psf->width) + ((row + (cur->y * psf->height)) * defaultScreen.height) + (psf->width - pixel)] = defaultFrontColor;
 				}
 			}
 		}
@@ -85,22 +90,22 @@ void writeChar(int character, Pos *cur) {
 }
 
 void advanceCursorX() {
-	++defaultTTY.cursorPos.x;
-	if(defaultTTY.cursorPos.x >= defaultTTY.width) {
-		defaultTTY.cursorPos.x = 0;
-		++defaultTTY.cursorPos.y;
+	++defaultTTY.curPos.x;
+	if(defaultTTY.curPos.x >= defaultTTY.charWidth) {
+		defaultTTY.curPos.x = 0;
+		++defaultTTY.curPos.y;
 	}
-	if(defaultTTY.cursorPos.y >= defaultTTY.height) {
-		--defaultTTY.cursorPos.y;
+	if(defaultTTY.curPos.y >= defaultTTY.charHeight) {
+		--defaultTTY.curPos.y;
 		scrollOneUp();
 	}
 }
 
 void newLine() {
-	defaultTTY.cursorPos.x = 0;
-	++defaultTTY.cursorPos.y;
-	if(defaultTTY.cursorPos.y >= defaultTTY.height) {
-		--defaultTTY.cursorPos.y;
+	defaultTTY.curPos.x = 0;
+	++defaultTTY.curPos.y;
+	if(defaultTTY.curPos.y >= defaultTTY.charHeight) {
+		--defaultTTY.curPos.y;
 		scrollOneUp();
 	}
 }
@@ -113,7 +118,7 @@ void printchar(char **str, int c) {
 		if(c == '\n') {
 			newLine();
 		} else {
-			writeChar(c, &defaultTTY.cursorPos);
+			writeChar(c, &defaultTTY.curPos);
 			advanceCursorX();
 		}
 	}
