@@ -33,7 +33,7 @@
 ; 0xffffffff80000000 - 0xffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
 ; 0xffffffffa0000000 - 0xffffffffff5fffff (=1526 MB) module mapping space
 
-%include	"vesa.asm"	; vesa structures
+%include	"vesa.i"	; vesa structures
 
 ; Miscellaneous defines
 ;
