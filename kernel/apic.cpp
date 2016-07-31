@@ -45,13 +45,50 @@
 #define APIC_CURRENT_COUNT_REGISTER				0x390		// RO
 #define APIC_DIVIDE_CONFIGURATION_REGISTER		0x3E0		// RW
 
+// I/O Window Register, offset from IOAPIC base
+#define IOAPIC_IOREGSEL							0x0/4		// RW		
+#define IOAPIC_IOWIN							0x10/4		// RW
+
+// IOAPIC Registers
+#define IOAPICID	0x0
+#define IOAPICVER	0x1
+#define IOAPICARB	0x2
+#define IOREDTBL0	0x10 //	0x10-0x3F 24 64-bit I/O Redirection table entry Registers
+
+
+
 
 //#define rdmsr(msr,val1,val2) asm volatile("rdmsr" : "=a" (val1), "=d" (val2) : "c" (msr)); // __asm  ("rdmsr" : "=a"(eax), "=d"(edx) : "c"(ecx));
 //#define rdmsr(msr, lo, hi) asm volatile("rdmsr" : "=a"(*lo), "=d"(*hi) : "c"(msr));
 
+int kprintf(const char *formatString, ...);
+
 u32 currentCount;
 
+void setupIOAPIC() {
 
+	kprintf("Mokaw\n");
+
+	// todo get saved IOAPIC address from ACPI
+/*
+	u32 ioapicBase = 0xfec00000;
+	*(u32*)(ioapicBase+IOAPIC_IOREGSEL) = IOAPICVER;
+	u32 apicver = *(u32*)(ioapicBase+IOAPIC_IOWIN);
+*/
+	u32* ioapicBase = (u32*)0xfec00000;
+	*(ioapicBase+IOAPIC_IOREGSEL) = IOAPICVER;
+	u32 apicver = *(ioapicBase+IOAPIC_IOWIN);
+	u8 version = apicver & 0xff;
+	u8 irqs = ((apicver >> 16) & 0xff) + 1;
+	kprintf("IOAPIC version:%d irqs:%d\n %08x\n",version, irqs, apicver);
+	for(u8 irq=0;irq<irqs;irq++) {
+		*(ioapicBase+IOAPIC_IOREGSEL) = IOREDTBL0+2*irq;
+		u32 tbl0a = *(ioapicBase+IOAPIC_IOWIN);
+		*(ioapicBase+IOAPIC_IOREGSEL) = IOREDTBL0+2*irq+1;
+		u32 tbl0b = *(ioapicBase+IOAPIC_IOWIN);
+		kprintf("TBL data %08x %08x\n", tbl0a, tbl0b);
+	}
+}
 
 void setupApic() {
 

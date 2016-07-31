@@ -15,6 +15,7 @@
 extern "C" void kernelmain(LoaderInfo *info);
 
 void setupInterrupts();
+void setupIOAPIC();
 void setupApic();
 
 void setupE820(LoaderInfo *info);
@@ -66,6 +67,7 @@ void kernelmain(LoaderInfo *info)  {
 	setupE820(info);
 
 	asm("jmp .;");
+	setupIOAPIC();
 	setupInterrupts();
 	setupApic();
 	asm("jmp .;");
