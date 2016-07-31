@@ -62,11 +62,11 @@ void kernelmain(LoaderInfo *info)  {
 	kprintf("\n\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
 
 
-//	setupPaging(info);
+//	setupPaging(info);  
 
 	setupE820(info);
 
-	asm("jmp .;");
+	//asm("jmp .;");
 	setupIOAPIC();
 	setupInterrupts();
 	setupApic();
