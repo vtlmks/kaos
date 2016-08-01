@@ -62,7 +62,7 @@ struct MADTEntry2 {			// Interrupt Source Override
 
 
 
-void search() {
+void setupACPI() {
 	const char* rsdMagic = "RSD PTR ";
 	u64 rsdptr = 0;
 	kprintf("ACPI initialization.\n");
@@ -104,6 +104,10 @@ void search() {
 		if( *(u32*)(ptr) == *(u32*)"APIC") {
 			ACPISDTHeader* madtSdtHeader = (ACPISDTHeader*) ptr;
 			//kprintf("MADT length = %d\n", madtSdtHeader->Length);
+			
+			MADT* madt = (MADT*) (ptr+sizeof(ACPISDTHeader));
+			kprintf("LAPIC adress = %08x\n", madt->LocalControllerAddress);
+			
 			u64 offset = sizeof(ACPISDTHeader) + sizeof(MADT);
 			while(offset < madtSdtHeader->Length) 
 			{
