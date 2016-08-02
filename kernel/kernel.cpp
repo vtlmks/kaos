@@ -14,6 +14,11 @@
 
 extern "C" void kernelmain(LoaderInfo *info);
 
+// these are functions that will be contained in a private .cpp-file
+// so that each developer can do things without changing stuff in kernel.cpp
+void dev_hook_run();
+
+//
 void setupInterrupts();
 void setupIOAPIC();
 void setupApic();
@@ -62,9 +67,7 @@ void kernelmain(LoaderInfo *info)  {
 	kprintf(" %s %s", _kernelBuildDate, _kernelBuildTime);
 	kprintf("\n\nScreen mode %dx%d @ %d bits per pixel; %d bytes per row.\n\n", info->vesaPixelWidth, info->vesaPixelHeight, info->vesaPixelDepth, info->vesaBytesPerRow);
 
-
 //	setupPaging(info);  
-
 	setupE820(info);
 
 	//asm("jmp .;");
@@ -73,9 +76,9 @@ void kernelmain(LoaderInfo *info)  {
 	setupIOAPIC();
 	setupApic();
 
+	dev_hook_run();
+
 	asm("jmp .;");
-
-
 }
 
 // #include <meminfo.h>
