@@ -9,6 +9,7 @@ struct IDTDescriptor {
    u8	typeAttributes; // type and attributes
    u16	offsetMiddle; 	// bits 16..31
    u32	offsetHigh;		// bits 32..63
+   u32	reserved2;
 };
 
 struct __attribute__ ((__packed__)) LIDTEntry {
@@ -22,26 +23,34 @@ u64 			dummy;
 u64 			dummy2;
 
 
+int kprintf(const char *formatString, ...);
+
 void interruptTest() {
 
-	asm("mov $0xdeadffff,%eax");
+	asm("mov $0xdeadffff,%eax;");
 	asm("jmp .;");
 }
 
 void irq0() {
-	asm("mov $0xdead0000,%eax");
-	asm("jmp .;");
+	kprintf("mokaw\n");
+	u32* v = (u32*)0xfd000000;
+	v[0] = v[0] + v[0];
+	u32 volatile* a= (u32 volatile*)0xfec00000;
+	a[0xB0/4]=0;
+
+
+	asm("iretq;");
 }
 void irq1() {
-	asm("mov $0xdead0001,%eax");
+	asm("mov $0xdead0001,%eax;");
 	asm("jmp .;");
 }
 void irq2() {
-	asm("mov $0xdead0002,%eax");
+	asm("mov $0xdead0002,%eax;");
 	asm("jmp .;");
 }
 void irq3() {
-	asm("mov $0xdead0003,%eax");
+	asm("mov $0xdead0003,%eax;");
 	asm("jmp .;");
 }
 void irq4() {
@@ -168,8 +177,8 @@ void setupInterrupts() {
 		IDTTable[i].typeAttributes = 0x80 | 0xe;		// present-bit, interrupt gate
 		IDTTable[i].offsetMiddle = (u16) (irqFunction>>16);
 		IDTTable[i].offsetHigh = (u32) (irqFunction>>32);
-
-/*		IDTTable[i].offsetLow = (u16) ((u64)(&interruptTest)&0xffff);
+/*
+		IDTTable[i].offsetLow = (u16) ((u64)(&interruptTest)&0xffff);
 		IDTTable[i].selector = 8;
 		IDTTable[i].typeAttributes = 0x80 | 0xe;		// present-bit, interrupt gate
 		IDTTable[i].offsetMiddle = (u16) ((u64)(&interruptTest)>>16);
@@ -178,4 +187,5 @@ void setupInterrupts() {
 	}
 	asm("lidt %0" : : "m" (IDT));
 	//asm("sti;");
+	//		asm("int $80;");
 }

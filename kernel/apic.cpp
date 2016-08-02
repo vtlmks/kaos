@@ -143,9 +143,10 @@ void setupApic() {
 	//currentCount *=16;
 	//currentCount *=100;
 
+
 	apicBase[APIC_INITIAL_COUNT_REGISTER] =5555; //(u32)ticks;
 	apicBase[APIC_LVT_TIMER_REGISTER] = (32 | APIC_TIMER_PERIODIC);
-	apicBase[APIC_DIVIDE_CONFIGURATION_REGISTER] = 0xb; //3;								// Divide value = 16
+	apicBase[APIC_DIVIDE_CONFIGURATION_REGISTER] = 03; //3;								// Divide value = 16
 	apicBase[APIC_EOI_REGISTER] = 0;
 	//apicBase[APIC_ERROR_STATUS_REGISTER]=0;
 	//apicBase[APIC_ERROR_STATUS_REGISTER]=0;
@@ -163,7 +164,7 @@ void setupApic() {
 
 	// done
 	asm volatile("mov $0xdeadf00d,%eax;");
-	//asm volatile("sti;");
+	asm volatile("sti;");
 	asm volatile("jmp .;");
 
 	// ax = fee00900
