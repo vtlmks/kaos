@@ -1,5 +1,4 @@
-#ifndef PSF_H
-#define PSF_H
+#pragma once
 
 #define PSF2_MAGIC0     0x72
 #define PSF2_MAGIC1     0xb5
@@ -25,7 +24,6 @@ struct PSF2 {
 	uint32_t	charSize;		/* number of bytes for each character; charsize = height * ((width + 7) / 8) */
 	uint32_t	height;
 	uint32_t	width;			/* max dimensions of glyphs */
-};
+} __attribute((packed));
 
 
-#endif

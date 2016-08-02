@@ -2,12 +2,11 @@
 
 #define	E820MAX	128
 
-
 struct e820entry {
 	u64	addr;
 	u64	size;
 	u32	type;
-} __attribute__((packed));
+} __attribute((packed));
 
 struct e820map {
 	u32			mapCount;

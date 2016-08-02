@@ -11,7 +11,7 @@ struct LoaderInfo {
 	u16			vesaPixelHeight;
 	u8			e820Count;
 	u8			vesaPixelDepth;
-} __attribute__ ((__packed__));
+} __attribute((packed));
 
 //struct screen_info {                                                                 
 //	u8		orig_x;                   /* 0x00 */            
