@@ -6,7 +6,7 @@ AS = nasm
 ASFLAGS = -fbin
 
 CFLAGS  = -Os
-CFLAGS += -ffreestanding
+CFLAGS += -ffreestanding -mno-red-zone
 CFLAGS += -Wall -Wextra
 CFLAGS += -fno-exceptions -fno-rtti
 CFLAGS += -fomit-frame-pointer
