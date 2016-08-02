@@ -70,11 +70,7 @@ void kernelmain(LoaderInfo *info)  {
 //	setupPaging(info);  
 	setupE820(info);
 
-	//asm("jmp .;");
-	setupACPI();
 	setupInterrupts();
-	setupIOAPIC();
-	setupApic();
 
 	dev_hook_run();
 
