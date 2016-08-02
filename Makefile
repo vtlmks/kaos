@@ -16,9 +16,9 @@ CFLAGS += -DKERNEL_GIT_TAG=$(shell git rev-parse --short HEAD)
 LDFLAGS = -T ./kernel/linker.ld
 LDFLAGS += -nostdlib -nodefaultlibs -nostartfiles
 
-KERNEL_OBJS = $(patsubst %.cpp,%.o,$(wildcard kernel/*.cpp))
-KERNEL_OBJS += $(patsubst %.cpp,%.o,$(wildcard kernel/*/*.cpp))
-KERNEL_OBJS += $(patsubst %.cpp,%.o,$(wildcard kernel/*/*/*.cpp))
+KERNEL_SOURCES = $(wildcard kernel/*.cpp)
+KERNEL_OBJECTS = $(KERNEL_SOURCES:.cpp=.o)
+KERNEL_DEPENDENCIES = $(KERNEL_SOURCES:.cpp=.d)
 
 KERNEL_ASMOBJS = $(patsubst %.asm,%.bin,$(wildcard *.asm))
 
@@ -26,10 +26,12 @@ KERNEL_ASMOBJS = $(patsubst %.asm,%.bin,$(wildcard *.asm))
 EMU = qemu-system-x86_64.exe
 EMUARGS  = -fda floppy.img -monitor stdio -vga std
 
+print-%: ; @echo $* = $($*)
+
 all: kernel.bin
 
-kernel.bin: $(KERNEL_OBJS) $(KERNEL_ASMOBJS)
-	@$(CXX) $(LDFLAGS) $(KERNEL_OBJS) -o kernel/kernel.bin
+kernel.bin: $(KERNEL_OBJECTS) $(KERNEL_ASMOBJS)
+	@$(CXX) $(LDFLAGS) $(KERNEL_OBJECTS) -o kernel/kernel.bin
 
 floppy.img: kernel.bin
 	@bootimage bootblock.bin loader.bin kernel/kernel.bin
@@ -41,10 +43,9 @@ run: floppy.img
 	@$(AS) $(ASFLAGS) $< -o $@
 
 %.o: %.cpp
-	@$(CXX) $(CFLAGS) -c $< -o $@
+	@$(CXX) $(CFLAGS) -MMD -MP -c $< -o $@
 
 clean:
-	rm kernel/*.o
-	rm *.o
-	rm *.bin
+	rm $(KERNEL_OBJECTS) $(KERNEL_DEPENDENCIES) kernel/kernel.bin
 
+-include $(KERNEL_DEPENDENCIES)
