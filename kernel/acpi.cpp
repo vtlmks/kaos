@@ -27,38 +27,38 @@ struct ACPISDTHeader {		// 64-bit version
 	u32		OEMRevision;
 	u32		CreatorID;
 	u32		CreatorRevision;
-} __attribute__ ((__packed__));
+} __attribute__ ((packed));
 
 
 struct MADT {
 	u32		LocalControllerAddress;
 	u32		Flags;			// 1= Dual 8259 Legacy PICs installed
-}__attribute__ ((__packed__));
+}__attribute__ ((packed));
 
 struct MADTEntryHeader {
 	u8		EntryType;		// {1..3}
 	u8		Length;
-}__attribute__ ((__packed__));
+}__attribute__ ((packed));
 
 struct MADTEntry0 {			// Processor Local APIC
 	u8		ACPIProcessorID;
 	u8		APICID;
 	u32		Flags;			// 1 = Processor enabled
-}__attribute__ ((__packed__));
+}__attribute__ ((packed));
 
 struct MADTEntry1 {			// I/O APIC
 	u8		IOAPICID;
 	u8		Reserved;
 	u32		IOAPICAddress;
 	u32		GlobalSystemInterruptBase;
-}__attribute__ ((__packed__));
+}__attribute__ ((packed));
 
 struct MADTEntry2 {			// Interrupt Source Override
 	u8		BusSource;
 	u8		IRQSource;
 	u32		GlobalSystemInterrupt;
 	u16		Flags;
-}__attribute__ ((__packed__));
+}__attribute__ ((packed));
 
 
 
