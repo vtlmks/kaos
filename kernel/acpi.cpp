@@ -105,8 +105,8 @@ void setupACPI() {
 			ACPISDTHeader* madtSdtHeader = (ACPISDTHeader*) ptr;
 			//kprintf("MADT length = %d\n", madtSdtHeader->Length);
 			
-			MADT* madt = (MADT*) (ptr+sizeof(ACPISDTHeader));
-			kprintf("LAPIC adress = %08x\n", madt->LocalControllerAddress);
+			//MADT* madt = (MADT*) (ptr+sizeof(ACPISDTHeader));
+			//kprintf("LAPIC adress = %08x\n", madt->LocalControllerAddress);
 			
 			u64 offset = sizeof(ACPISDTHeader) + sizeof(MADT);
 			while(offset < madtSdtHeader->Length) 
