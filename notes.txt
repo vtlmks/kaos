@@ -1,0 +1,331 @@
+
+
+Scheduler MLFQ (MultiLevelFeedbackQueue)
+
+ Boosting:
+   When a process hasn't run, but is in runnable state, for (n)ms we boost it to a higher priority
+   what priority exactly has to be determined by the implementation, perhaps highest, or perhaps + n levels.
+
+ Queues:
+   We have to have at least 3 queues, which is meaningless, as we won't have much diffrentiation.
+   Queues are numbered from 0 -> n, where zero is lowest priority.
+
+	Queue 0 - Batch processes; pageclear, inserts freed pages into free-list et.c
+	Queue 1 - Normal programs
+	Queue 2 - High priority tasks, like audio and some other important system tasks.
+
+  for the system to be useful we should have something in the order of 8-10 queues. How the tasks are
+  prioritized has to be tested, but we could have it like:
+
+	Queue   0 - Batch... This has to be handled differently to prevent starvation, if the memory system
+                is under pressure we have to know that we have free, cleared, pages to allocate. Might be
+                that the kernel can itself forcefully raise the priority of tasks in this queue for (n)ms.
+
+	Queue 1-8 - depending on how much CPU is used, the lower amount of cpu used before going to sleep/wait
+                the higher priority the task get. We'd do a rdtsc when the task start to run and when it
+                ends and accumulate that value over time and calculate what systemload it has, or if we
+                want it to change more over time we can reset that count every minute or so and keep the
+                last n counts to see where the trend is going. Then we can use this to add the task to the
+                correct queue level. ex. if the task uses 15% of the cpu for the last few seconds we might
+                put it in queue 7, that is assuming we divide the queues equally over the range 0-100% which
+                gives each queue 12.5% cpu usage range. If a task takes 100% cpu, it would end up in queue 1
+
+                - The FreeBSD scheduler (version 4.3) uses a formula to calculate the current priority
+                  level of a job, basing it on how much CPU the process has used [LM+89]; in addition,
+                  usage is decayed over time, providing the desired priority boost in a different manner
+                  than described herein.
+
+	Queue   9 - Audio, system
+
+  Make it possible for the 'user' to give advice to the scheduler how to do priority changes, both global
+  decisions(configuration) and local(nice).
+
+  Example rules; from: http://pages.cs.wisc.edu/~remzi/OSTEP/
+
+   Rule 1: If Priority(A) > Priority(B), A runs (B doesn’t).
+   Rule 2: If Priority(A) = Priority(B), A & B run in RR.
+   Rule 3: When a job enters the system, it is placed at the highest priority (the topmost queue).
+   Rule 4: Once a job uses up its time allotment at a given level
+           (re-gardless of how many times it has given up the CPU),
+           its priority is reduced (i.e., it moves down one queue).
+   Rule 5: After some time period S, move all the jobs in the system to the topmost queue.
+
+  We might have more or less queues if there are good ideas for them.
+
+from: http://pages.cs.wisc.edu/~remzi/OSTEP/
+
+  The Solaris MLFQ implementation — the Time-Sharing scheduling class,
+  or TS — is particularly easy to configure; it provides a set of tables
+  that determine exactly how the priority of a process is altered through-
+  out its lifetime, how long each time slice is, and how often to boost the
+  priority of a job [AD00]; an administrator can muck with this table in
+  order to make the scheduler behave in different ways. Default values for
+  the table are 60 queues, with slowly increasing time-slice lengths from
+  20 milliseconds (highest priority) to a few hundred milliseconds (lowest),
+  and priorities boosted around every 1 second or so.
+
+
+  MemoryManagement
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- Per Process address space limited to 512 Gigabytes
+- Top of userstack is located at address 0x0000007fffffffff
+- Global RAM on system is max 508*512GB = 254 Terabytes
+
+Each CPU has an own PML4. On context switch the first slot is
+rewritten to the new PGD of the new process and CR3 is flushed.
+
+ 4     3    2    1
+PML4, PGD, PMD, PTE
+
+
+PML4:
+ [511] - Kernel code
+ [509] - IO Mappings
+ [256] - Start of direct mapping of physical memory
+ [000] - User space (in the future possible to extend to 47 bits ~128TB)
+
+
+FFFF800000000000
+
+
+- For direct mapping of physical memory, we use 1GB pages in PGD
+PML4 -> PGD[x]  where x is the number of entries needed to map the entire physical memory up to 512GB
+
+
+#define	ISA_START_ADDRESS	0xa0000
+#define	ISA_END_ADDRESS	0x100000
+
+#define	BIOS_START	0x000a0000
+#define	BIOS_END	0x00100000
+
+#define	BIOS_ROM_START	0xffe00000
+#define	BIOS_ROM_END	0xffffffff
+
+extern pgd_t swapper_pg_dir[1024];
+
+#define TASK_SIZE       (0x0000007fc0000000)	x86_64
+
+#define __PAGE_OFFSET           (0xC0000000)	i386
+#define TASK_SIZE       (PAGE_OFFSET)
+
+
+
+linux:
+; 509th slot in the pml4 - IO mappings
+#define IOMAP_START      0xfffffe8000000000
+
+
+
+
+#define KERNEL_TEXT_START 0xffffffff80000000UL
+                          0xffff fe80 0000 0000UL
+
+
+KAOS:
+
+#define KERNEL_TEXT_START	0xffffff8000000000UL	; 511th entry
+
+
+#define PAGE_SHIFT			12
+#define PAGE_SIZE			(1 << PAGE_SHIFT)
+#define PAGE_MASK			(~(PAGE_SIZE-1))
+
+#define PHYSICAL_MASK		0x0000ffffffffffff
+#define PHYSICAL_PAGE_MASK	0x0000fffffffff000
+
+#define LARGE_PAGE_MASK		(~(LARGE_PAGE_SIZE-1))
+#define LARGE_PAGE_SIZE		(1 << PMD_SHIFT)
+
+#define LARGE_PFN			(LARGE_PAGE_SIZE / PAGE_SIZE)
+
+#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+
+
+
+#define PML4_SHIFT      39
+#define PTRS_PER_PML4   512
+
+// PGDIR_SHIFT determines what a 3rd level page table entry can map
+#define PGDIR_SHIFT     30
+#define PTRS_PER_PGD    512
+
+// PMD_SHIFT determines the size of the area a middle-level page table can map
+#define PMD_SHIFT       21
+#define PTRS_PER_PMD    512
+
+// entries per page directory level
+#define PTRS_PER_PTE    512
+
+PML4, PGD, PMD, PTE
+
+
+HUGE pages are supported since 2010 intel westmere architecture
+1GB each
+
+
+
+allocate_PML4()		- one per CPU (256 PB)
+allocate_PML3()		- one per process (512GB each)
+allocate_PML2()		- up to 512 per PML3 entry (1GB each)
+allocate_PML1()		- up to 512 per PLM2 entry (2MB each)
+allocate_page()		- up to 512 per PML1 entry (4kb each)
+
+in total 512 PMD's with 512 PTE's each with 512 pointers to pages = 512GB
+
+        512 PMDs
+    262,144 PTEs
+134,217,728 Pages
+
+PAGE FRAME ALLOCATOR:
+
+
+34,359,738,368 (32GB memory)
+     8,388,608 pages
+       131,072 64bit entries
+     1,048,576 bytes of memory for page-bitmap
+
+
+
+
+
+
+
+
+
+
+For fast writes to memory;
+
+
+MISC_ENABLE = 0x0000_01a0 ; rdmsr I assume?
+
+
+ check MISC_ENABLE.FSE (bit 0)
+ if set, and
+ cpuid eax = 0x00000007 (Feature Flags)
+ ebx:9 is set (ERMS)
+
+
+	Mov	ecx, 4096
+	XOr	eax, eax
+	Rep Stosb
+	Ret
+
+alt 2
+	Mov	ecx, 4096/8
+	XOr	eax, eax
+	Rep Stosq
+	Ret
+
+alt 3
+	XOr	eax, eax
+	Mov	ecx, 4096/8
+	align 4
+.l	dec	ecx
+	Mov	0*8(rdi), rax
+	Mov	1*8(rdi), rax
+	Mov	2*8(rdi), rax
+	Mov	3*8(rdi), rax
+	Mov	4*8(rdi), rax
+	Mov	5*8(rdi), rax
+	Mov	6*8(rdi), rax
+	Mov	7*8(rdi), rax
+	Lea	rdi, [rdi + 64]
+	Jnz	.l
+	Nop
+	Ret
+
+
+
+
+gcc
+__attributes__((  ))
+interrupt
+interrupt_handler
+  Many GCC back ends support attributes to indicate that a function is an interrupt handler, which tells the compiler to generate function entry and exit sequences that differ from those from regular functions. The exact syntax and behavior are target-specific; refer to the following subsections for details. 
+
+
+
+Step 1:
+~~~~~~~
+                        [ CPU ]
+        [ D 1 ]            |          [ D 2 ]
+           |               |             |                Bus 0
+-----------^---------------+-------------^----------------
+                           |
+                      [ BRIDGE 1 ] primary bus = 0; secondary bus = 1; subordinate = 0xff
+                           |
+        [ D 1 ]            |          [ D 2 ]
+           |               |             |                Bus 1
+--------.--^-----.---------^-------------^------------.-------
+        |                                             |
+   [ BRIDGE 3 ] pb = x; sb = x; so = x           [ BRIDGE 2 ] pb = 1; sb = 2; so = 2
+        |                                             |
+        |    [ D 1 ]                                  |
+        |       |                Bus ?                |            Bus 2
+--------^---.---^---------------------  --------------^-----------------
+            |
+       [ BRIDGE 4 ] pb = x; sb = x; so = x
+            |
+            |          [ D 1 ]     [ D 2 ]
+            |             |           |                    bus ?
+------------^-------------^-----------^-------------------------
+
+Step 2:
+~~~~~~~
+                        [ CPU ]
+        [ D 1 ]            |          [ D 2 ]
+           |               |             |                Bus 0
+-----------^---------------+-------------^----------------
+                           |
+                      [ BRIDGE 1 ] primary bus = 0; secondary bus = 2; subordinate = 0xff
+                           |
+        [ D 1 ]            |          [ D 2 ]
+           |               |             |                Bus 1
+--------.--^-----.---------^-------------^------------.-------
+        |                                             |
+   [ BRIDGE 3 ] pb = 1; sb = 3; so = 0xff        [ BRIDGE 2 ] pb = 1; sb = 2; so = 2
+        |                                             |
+        |    [ D 1 ]                                  |
+        |       |                Bus 3                |            Bus 2
+--------^---.---^---------------------  --------------^-----------------
+            |
+       [ BRIDGE 4 ] pb = x; sb = x; so = x
+            |
+            |          [ D 1 ]     [ D 2 ]
+            |             |           |                    bus ?
+------------^-------------^-----------^-------------------------
+
+Step 3:
+~~~~~~~
+                        [ CPU ]
+        [ D 1 ]            |          [ D 2 ]
+           |               |             |                Bus 0
+-----------^---------------+-------------^----------------
+                           |
+                      [ BRIDGE 1 ] primary bus = 0; secondary bus = 1; subordinate = 4
+                           |
+        [ D 1 ]            |          [ D 2 ]
+           |               |             |                Bus 1
+--------.--^-----.---------^-------------^------------.-------
+        |                                             |
+   [ BRIDGE 3 ] pb = 1; sb = 3; so = 4           [ BRIDGE 2 ] pb = 1; sb = 2; so = 2
+        |                                             |
+        |    [ D 1 ]                                  |
+        |       |                Bus 3                |            Bus 2
+--------^---.---^---------------------  --------------^-----------------
+            |
+       [ BRIDGE 4 ] pb = 3; sb = 4; so = 4
+            |
+            |          [ D 1 ]     [ D 2 ]
+            |             |           |                    bus 4
+------------^-------------^-----------^-------------------------
+
+
+struct PCI_Bus {
+	u8	primaryBus;
+	u8	secondaryBus;
+	u8	subordinate;
+};
+
+
+
