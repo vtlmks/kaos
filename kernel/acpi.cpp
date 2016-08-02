@@ -13,7 +13,7 @@ struct RSDPDescriptor {
 	char	OEMID[6];
 	u8		Revision;
 	u32		RsdtAddress;
-} __attribute__ ((packed));
+} __attribute((packed));
 
 //struct RSDPDescriptor20 {
 
