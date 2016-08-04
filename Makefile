@@ -36,6 +36,8 @@ kernel.bin: $(KERNEL_OBJECTS) $(KERNEL_ASM_OBJECTS)
 	@$(CXX) $(LDFLAGS) $(KERNEL_OBJECTS) -o kernel/kernel.bin
 
 floppy.img: kernel.bin
+	@nasm -fbin loader.asm -o loader.bin
+	@nasm -fbin bootblock.asm -o bootblock.bin
 	@bootimage bootblock.bin loader.bin kernel/kernel.bin
 
 run: floppy.img
