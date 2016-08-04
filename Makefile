@@ -3,8 +3,6 @@ CC = x86_64-elf-gcc
 CXX= x86_64-elf-g++
 AS = nasm
 
-ASFLAGS = -fbin
-
 CFLAGS  = -Os
 CFLAGS += -ffreestanding -mno-red-zone
 CFLAGS += -Wall -Wextra
@@ -16,11 +14,15 @@ CFLAGS += -DKERNEL_GIT_TAG=$(shell git rev-parse --short HEAD)
 LDFLAGS = -T ./kernel/linker.ld
 LDFLAGS += -nostdlib -nodefaultlibs -nostartfiles
 
-KERNEL_SOURCES = $(wildcard kernel/*.cpp)
-KERNEL_OBJECTS = $(KERNEL_SOURCES:.cpp=.o)
-KERNEL_DEPENDENCIES = $(KERNEL_SOURCES:.cpp=.d)
+# Source gathering stuff
 
-KERNEL_ASMOBJS = $(patsubst %.asm,%.bin,$(wildcard *.asm))
+KERNEL_CPP_SOURCES = $(wildcard kernel/*.cpp)
+KERNEL_ASM_SOURCES = $(wildcard kernel/*.asm)
+
+KERNEL_OBJECTS = $(KERNEL_CPP_SOURCES:.cpp=.o)
+KERNEL_OBJECTS += $(KERNEL_ASM_SOURCES:.asm=.o)
+
+KERNEL_DEPENDENCIES = $(KERNEL_SOURCES:.cpp=.d)
 
 # QEmu settings
 EMU = qemu-system-x86_64.exe
@@ -30,7 +32,7 @@ print-%: ; @echo $* = $($*)
 
 all: kernel.bin
 
-kernel.bin: $(KERNEL_OBJECTS) $(KERNEL_ASMOBJS)
+kernel.bin: $(KERNEL_OBJECTS) $(KERNEL_ASM_OBJECTS)
 	@$(CXX) $(LDFLAGS) $(KERNEL_OBJECTS) -o kernel/kernel.bin
 
 floppy.img: kernel.bin
@@ -40,7 +42,10 @@ run: floppy.img
 	@$(EMU) $(EMUARGS)
 
 %.bin: %.asm
-	@$(AS) $(ASFLAGS) $< -o $@
+	@$(AS) -fbin $< -o $@
+
+%.o: %.asm
+	@$(AS) -felf64 $< -o $@
 
 %.o: %.cpp
 	@$(CXX) $(CFLAGS) -MMD -MP -c $< -o $@
